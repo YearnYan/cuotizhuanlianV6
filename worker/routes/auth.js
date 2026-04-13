@@ -12,7 +12,7 @@ export function authRoutes(app) {
   app.post('/register', async (c) => {
     try {
       const payload = sanitizeAuthBody(await c.req.json());
-      const user = await registerUser(payload);
+      const user = await registerUser(c.env, payload);
       const token = await issueToken(c.env, {
         role: 'user',
         uid: user.id,
@@ -27,7 +27,7 @@ export function authRoutes(app) {
   app.post('/login', async (c) => {
     try {
       const payload = sanitizeAuthBody(await c.req.json());
-      const user = await loginUser(payload);
+      const user = await loginUser(c.env, payload);
       const token = await issueToken(c.env, {
         role: 'user',
         uid: user.id,
@@ -46,7 +46,7 @@ export function authRoutes(app) {
       if (!payload || payload.role !== 'user') {
         return c.json({ error: '未登录或登录已失效' }, 401);
       }
-      const user = await getUserById(payload.uid);
+      const user = await getUserById(c.env, payload.uid);
       if (!user) {
         return c.json({ error: '用户不存在或已失效' }, 401);
       }
@@ -65,11 +65,10 @@ export function authRoutes(app) {
       }
       const body = await c.req.json();
       const code = String(body?.code || '').trim();
-      const result = await redeemCoupon({ userId: payload.uid, code });
+      const result = await redeemCoupon(c.env, { userId: payload.uid, code });
       return c.json(result);
     } catch (error) {
       return c.json({ error: error.message || '兑换失败' }, 400);
     }
   });
 }
-

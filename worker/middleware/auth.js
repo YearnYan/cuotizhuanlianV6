@@ -14,7 +14,7 @@ export async function requireUserAuth(c, next) {
     return unauthorized(c, '登录状态无效，请重新登录');
   }
 
-  const user = await getUserById(payload.uid);
+  const user = await getUserById(c.env, payload.uid);
   if (!user) return unauthorized(c, '用户不存在或已失效');
 
   c.set('authUser', {
@@ -39,4 +39,3 @@ export async function requireAdminAuth(c, next) {
   });
   await next();
 }
-

@@ -15,3 +15,11 @@ not_found_handling = "single-page-application"
 [vars]
 AI_MODEL = "gemini-3.1-pro-preview"
 AI_API_URL = "https://api.linapi.net/v1/chat/completions"
+
+[[durable_objects.bindings]]
+name = "ACCOUNT_STORE"
+class_name = "AccountStoreDO"
+
+[[migrations]]
+tag = "v1-account-store-do"
+new_sqlite_classes = ["AccountStoreDO"]

@@ -209,7 +209,7 @@ export function examRoutes(app) {
           Number.parseInt(questionCount, 10) || totalFromTypeCounts || normalizedTypes.length
         );
 
-        const userAfterCost = await consumePoint({
+        const userAfterCost = await consumePoint(c.env, {
           userId: authUserId,
           amount: 1,
           reason: 'practice_generate',
@@ -271,7 +271,7 @@ export function examRoutes(app) {
         questionTypesDesc += `，包含以下题型：${questionTypes.join('、')}`;
       }
 
-      const userAfterCost = await consumePoint({
+      const userAfterCost = await consumePoint(c.env, {
         userId: authUserId,
         amount: 1,
         reason: 'exam_generate',
@@ -302,7 +302,7 @@ export function examRoutes(app) {
     } catch (error) {
       if (consumedPoint && authUserId) {
         try {
-          await refundPoint({
+          await refundPoint(c.env, {
             userId: authUserId,
             amount: 1,
             reason: 'generate_failed_refund',
@@ -320,4 +320,3 @@ export function examRoutes(app) {
     }
   });
 }
-

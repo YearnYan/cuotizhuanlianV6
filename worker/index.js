@@ -14,6 +14,7 @@ import { renderRoutes } from './routes/render.js';
 import { authRoutes } from './routes/auth.js';
 import { adminRoutes } from './routes/admin.js';
 import { ADMIN_PAGE_HTML } from './views/admin-page.js';
+export { AccountStoreDO } from './durable/account-store-do.js';
 
 const app = new Hono();
 
@@ -101,4 +102,3 @@ app.all('*', async (c) => {
 });
 
 export default app;
-

@@ -40,7 +40,7 @@ export function adminRoutes(app) {
 
   app.get('/stats', requireAdminAuth, async (c) => {
     try {
-      const stats = await getAdminStats();
+      const stats = await getAdminStats(c.env);
       return c.json({
         ...stats,
         aiKeyPool: getAIKeyPoolSnapshot(c.env)
@@ -53,7 +53,7 @@ export function adminRoutes(app) {
   app.get('/coupons', requireAdminAuth, async (c) => {
     try {
       const limit = Number.parseInt(c.req.query('limit'), 10) || 200;
-      const coupons = await listCoupons({ limit });
+      const coupons = await listCoupons(c.env, { limit });
       return c.json({ coupons });
     } catch (error) {
       return c.json({ error: error.message || '读取兑换券失败' }, 500);
@@ -66,7 +66,7 @@ export function adminRoutes(app) {
       const points = Number.parseInt(body?.points, 10);
       const quantity = Number.parseInt(body?.quantity, 10);
       const authAdmin = c.get('authAdmin');
-      const coupons = await generateCoupons({
+      const coupons = await generateCoupons(c.env, {
         points,
         quantity,
         createdBy: authAdmin?.username || 'admin'
