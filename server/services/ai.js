@@ -3,6 +3,7 @@ const OpenAI = require('openai');
 const fs = require('fs');
 const nodePath = require('path');
 const { AI_CONFIG } = require('../config/ai');
+const { acquireAIKeyLease } = require('./ai-key-pool');
 
 // ============================================================
 // 质量约束常量 & 辅助函数（第一层 + 第五层）
@@ -56,10 +57,12 @@ function loadFigureConstraints(subject) {
   }
 }
 
-const aiClient = new OpenAI({
-  apiKey: AI_CONFIG.apiKey,
-  baseURL: AI_CONFIG.baseURL
-});
+function createAIClient(apiKey) {
+  return new OpenAI({
+    apiKey,
+    baseURL: AI_CONFIG.baseURL
+  });
+}
 
 function extractTextContent(content) {
   if (typeof content === 'string') {
@@ -113,7 +116,9 @@ function buildUserMessageContent(userPrompt, options = {}) {
  * @returns {Promise<string>} AI生成的文本内容
  */
 async function generateContent(systemPrompt, userPrompt, options = {}) {
+  const lease = acquireAIKeyLease();
   try {
+    const aiClient = createAIClient(lease.apiKey);
     const model = options.model || AI_CONFIG.model;
     const completion = await aiClient.chat.completions.create({
       model,
@@ -129,17 +134,18 @@ async function generateContent(systemPrompt, userPrompt, options = {}) {
     if (!text) {
       throw new Error('API返回空内容');
     }
-
+    lease.release(true);
     return text;
   } catch (error) {
+    lease.release(false, error);
     const status = error?.status || error?.response?.status;
     const reason = error?.error?.message || error?.message || '未知错误';
     if (status) {
-      console.error(`AI API调用失败: ${status} ${reason}`);
+      console.error(`AI API调用失败(key#${lease.index}): ${status} ${reason}`);
       throw new Error(`AI生成失败: API返回 ${status} - ${reason}`);
     }
 
-    console.error('AI API调用失败:', reason);
+    console.error(`AI API调用失败(key#${lease.index}):`, reason);
     throw new Error(`AI生成失败: ${reason}`);
   }
 }

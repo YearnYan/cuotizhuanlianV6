@@ -6,6 +6,13 @@ const FALLBACK_MAX_UPLOAD_SIZE_BYTES = 8 * 1024 * 1024;
 const FALLBACK_COUNT_LIMITS = { min: 1, max: 5 };
 const DEFAULT_PREVIEW_TITLE = '错题啄木鸟专练试卷';
 const ENGLISH_SUBJECT_PATTERN = /(英语|english)/i;
+const AUTH_TOKEN_STORAGE_KEY = 'wd_auth_token_v1';
+const AUTH_API = {
+    register: `${API_BASE}/auth/register`,
+    login: `${API_BASE}/auth/login`,
+    me: `${API_BASE}/auth/me`,
+    redeem: `${API_BASE}/auth/redeem`
+};
 
 const state = {
     generatedQuestions: [],
@@ -22,7 +29,12 @@ const state = {
     savedQuestionTypes: [],
     savedQuestionTypeCounts: {},
     lastPreviewTitle: '',
-    lastPreviewGroups: null
+    lastPreviewGroups: null,
+    auth: {
+        token: '',
+        user: null,
+        loading: false
+    }
 };
 
 const scriptPromiseCache = new Map();
@@ -45,6 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function bootstrapApp() {
+    initAuthState();
+    await refreshCurrentUser();
     await loadRuntimeConfig();
     loadSettings();
     renderQuestionTypes();
@@ -54,6 +68,200 @@ async function bootstrapApp() {
 
     if (typeof ensureRequestToken === 'function') {
         ensureRequestToken().catch(() => {});
+    }
+}
+
+function initAuthState() {
+    state.auth.token = String(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || '').trim();
+}
+
+function setAuthToken(token) {
+    const finalToken = String(token || '').trim();
+    state.auth.token = finalToken;
+    if (finalToken) {
+        localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, finalToken);
+    } else {
+        localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    }
+}
+
+function getAuthHeaders(headers = {}) {
+    const merged = { ...headers };
+    if (state.auth.token) {
+        merged.Authorization = `Bearer ${state.auth.token}`;
+    }
+    return merged;
+}
+
+function isLoggedIn() {
+    return Boolean(state.auth.token && state.auth.user);
+}
+
+function updateAuthPanel(message = '') {
+    const nameEl = document.getElementById('authUserName');
+    const pointsEl = document.getElementById('authUserPoints');
+    const tipEl = document.getElementById('authTip');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const redeemBtn = document.getElementById('redeemCouponBtn');
+
+    if (nameEl) {
+        nameEl.textContent = state.auth.user?.username || '未登录';
+    }
+    if (pointsEl) {
+        pointsEl.textContent = String(state.auth.user?.points ?? 0);
+    }
+    if (logoutBtn) {
+        logoutBtn.style.display = isLoggedIn() ? 'inline-block' : 'none';
+    }
+    if (redeemBtn) {
+        redeemBtn.style.display = isLoggedIn() ? 'inline-block' : 'inline-block';
+    }
+    if (tipEl) {
+        if (message) {
+            tipEl.textContent = message;
+        } else if (!isLoggedIn()) {
+            tipEl.textContent = '请先注册或登录，再上传错题并生成题目。';
+        } else if (Number(state.auth.user?.points || 0) <= 0) {
+            tipEl.textContent = '积分不足，请先兑换积分后再生成题目（每次生成消耗1积分）。';
+        } else {
+            tipEl.textContent = '已登录，可上传错题并生成题目（每次生成消耗1积分）。';
+        }
+    }
+}
+
+async function refreshCurrentUser() {
+    if (!state.auth.token) {
+        state.auth.user = null;
+        updateAuthPanel();
+        return;
+    }
+    try {
+        const resp = await apiFetch(AUTH_API.me, {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        if (!resp.ok) {
+            setAuthToken('');
+            state.auth.user = null;
+            updateAuthPanel();
+            return;
+        }
+        const data = await resp.json();
+        state.auth.user = data.user || null;
+        updateAuthPanel();
+    } catch {
+        setAuthToken('');
+        state.auth.user = null;
+        updateAuthPanel();
+    }
+}
+
+function requireLoginOrAlert() {
+    if (isLoggedIn()) return true;
+    alert('请先注册或登录账号');
+    openAuthModal();
+    return false;
+}
+
+function openAuthModal() {
+    const modal = document.getElementById('authModal');
+    if (modal) modal.classList.add('show');
+}
+
+function openRedeemModal() {
+    if (!requireLoginOrAlert()) return;
+    const modal = document.getElementById('redeemModal');
+    if (modal) modal.classList.add('show');
+}
+
+function setModalTip(id, text, isError = false) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text || '';
+    el.style.color = isError ? '#ff8f8f' : 'var(--text-dim)';
+}
+
+async function registerAccount() {
+    const username = String(document.getElementById('authUsername')?.value || '').trim();
+    const password = String(document.getElementById('authPassword')?.value || '');
+    setModalTip('authModalTip', '正在注册...');
+    try {
+        const resp = await apiFetch(AUTH_API.register, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+            throw new Error(data.error || '注册失败');
+        }
+        setAuthToken(data.token || '');
+        state.auth.user = data.user || null;
+        await loadRuntimeConfig();
+        renderQuestionTypes();
+        applyQuestionTypeCountsToInputs();
+        updateAuthPanel('注册成功，欢迎使用错题啄木鸟');
+        setModalTip('authModalTip', '注册成功');
+        closeModal('authModal');
+    } catch (error) {
+        setModalTip('authModalTip', error.message || '注册失败', true);
+    }
+}
+
+async function loginAccount() {
+    const username = String(document.getElementById('authUsername')?.value || '').trim();
+    const password = String(document.getElementById('authPassword')?.value || '');
+    setModalTip('authModalTip', '正在登录...');
+    try {
+        const resp = await apiFetch(AUTH_API.login, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+            throw new Error(data.error || '登录失败');
+        }
+        setAuthToken(data.token || '');
+        state.auth.user = data.user || null;
+        await loadRuntimeConfig();
+        renderQuestionTypes();
+        applyQuestionTypeCountsToInputs();
+        updateAuthPanel('登录成功');
+        setModalTip('authModalTip', '登录成功');
+        closeModal('authModal');
+    } catch (error) {
+        setModalTip('authModalTip', error.message || '登录失败', true);
+    }
+}
+
+function logoutAccount() {
+    setAuthToken('');
+    state.auth.user = null;
+    updateAuthPanel('已退出登录');
+}
+
+async function redeemPoints() {
+    if (!requireLoginOrAlert()) return;
+    const code = String(document.getElementById('redeemCodeInput')?.value || '').trim();
+    setModalTip('redeemTip', '正在兑换...');
+    try {
+        const resp = await apiFetch(AUTH_API.redeem, {
+            method: 'POST',
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ code })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+            throw new Error(data.error || '兑换失败');
+        }
+        state.auth.user = data.user || state.auth.user;
+        updateAuthPanel(`兑换成功，当前积分：${state.auth.user?.points ?? 0}`);
+        setModalTip('redeemTip', '兑换成功');
+        const input = document.getElementById('redeemCodeInput');
+        if (input) input.value = '';
+    } catch (error) {
+        setModalTip('redeemTip', error.message || '兑换失败', true);
     }
 }
 
@@ -449,6 +657,11 @@ function shouldWarnEnglishWholeQuestion(analysis) {
 }
 
 async function handleWrongQuestionUpload(inputEl) {
+    if (!requireLoginOrAlert()) {
+        inputEl.value = '';
+        return;
+    }
+
     const file = inputEl?.files?.[0];
     if (!file) return;
 
@@ -489,7 +702,7 @@ async function handleWrongQuestionUpload(inputEl) {
 
         const resp = await apiFetch(`${API_BASE}/exam/analyze-wrong-question`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({
                 fileName: file.name,
                 mimeType: file.type,
@@ -500,6 +713,12 @@ async function handleWrongQuestionUpload(inputEl) {
 
         if (!resp.ok) {
             const errData = await resp.json().catch(() => ({ error: '解析失败' }));
+            if (resp.status === 401) {
+                setAuthToken('');
+                state.auth.user = null;
+                updateAuthPanel('登录已失效，请重新登录');
+                openAuthModal();
+            }
             throw new Error(errData.error || '解析失败');
         }
 
@@ -679,6 +898,13 @@ function updateFigureProgressBanner(done, total, failed = 0, active = true) {
 }
 
 async function generateExam() {
+    if (!requireLoginOrAlert()) return;
+    if (Number(state.auth.user?.points || 0) < 1) {
+        alert('积分不足，请先兑换积分后再生成题目（每次生成消耗1积分）');
+        openRedeemModal();
+        return;
+    }
+
     if (!state.analysis || !state.wrongQuestion) {
         alert('请先上传并解析1道完整错题（英语请上传整题）');
         return;
@@ -747,7 +973,7 @@ async function generateExam() {
     try {
         const resp = await apiFetch(`${API_BASE}/exam/generate`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({
                 subject: state.analysis.subject,
                 grade: state.analysis.grade,
@@ -765,12 +991,22 @@ async function generateExam() {
 
         if (!resp.ok) {
             const errData = await resp.json().catch(() => ({ error: '生成失败' }));
+            if (resp.status === 401) {
+                setAuthToken('');
+                state.auth.user = null;
+                updateAuthPanel('登录已失效，请重新登录');
+                openAuthModal();
+            }
             alert('生成失败：' + (errData.error || '未知错误'));
             return;
         }
 
         const data = await resp.json();
         if (requestToken !== state.activeGenerateToken) return;
+        if (Number.isFinite(Number.parseInt(data.userPoints, 10)) && state.auth.user) {
+            state.auth.user.points = Number.parseInt(data.userPoints, 10);
+            updateAuthPanel();
+        }
 
         if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
             state.currentExamData = data;
@@ -867,7 +1103,7 @@ async function loadSingleFigure(fig, figureLoadToken, retryCount = 0) {
 
         const resp = await apiFetch(`${API_BASE}/render/figure`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({
                 description: desc,
                 stem: fig.stem || '',
@@ -875,7 +1111,14 @@ async function loadSingleFigure(fig, figureLoadToken, retryCount = 0) {
             })
         });
 
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        if (!resp.ok) {
+            if (resp.status === 401) {
+                setAuthToken('');
+                state.auth.user = null;
+                updateAuthPanel('登录已失效，请重新登录');
+            }
+            throw new Error(`HTTP ${resp.status}`);
+        }
         const data = await resp.json();
 
         if (figureLoadToken !== state.activeFigureLoadToken) return false;
@@ -1477,5 +1720,11 @@ Object.assign(window, {
     exportToWord,
     closeModal,
     saveSettings,
-    handleShowOriginalChange
+    handleShowOriginalChange,
+    openAuthModal,
+    openRedeemModal,
+    registerAccount,
+    loginAccount,
+    logoutAccount,
+    redeemPoints
 });

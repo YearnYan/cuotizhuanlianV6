@@ -6,6 +6,10 @@ const {
   analyzeWrongQuestion,
   generateWrongQuestionPractice
 } = require('../services/ai');
+const {
+  consumePoint,
+  refundPoint
+} = require('../services/account-store');
 const { getDifficultyPrompt } = require('../prompts/difficulty-levels');
 
 const EXAM_TYPE_NAMES = {
@@ -160,7 +164,14 @@ router.post('/analyze-wrong-question', async (req, res) => {
  * AI 生成试卷题目
  */
 router.post('/generate', async (req, res) => {
+  let consumedPoint = false;
+  let authUserId = 0;
   try {
+    authUserId = Number(req.authUser?.id || 0);
+    if (!authUserId) {
+      return res.status(401).json({ error: '请先登录账号后再使用' });
+    }
+
     const hasPracticePayload = (
       req.body && (
         req.body.knowledgePoints !== undefined ||
@@ -211,6 +222,17 @@ router.post('/generate', async (req, res) => {
         parseInt(questionCount, 10) || totalFromTypeCounts || normalizedTypes.length
       );
 
+      const userAfterCost = await consumePoint({
+        userId: authUserId,
+        amount: 1,
+        reason: 'practice_generate',
+        metadata: {
+          questionCount: resolvedQuestionCount,
+          mode: 'practice'
+        }
+      });
+      consumedPoint = true;
+
       const exam = await generateWrongQuestionPractice({
         subject: subject || '通用',
         grade,
@@ -225,7 +247,10 @@ router.post('/generate', async (req, res) => {
         imageUrls: sourceQuestionImage ? [sourceQuestionImage] : []
       });
 
-      return res.json(exam);
+      return res.json({
+        ...exam,
+        userPoints: userAfterCost.points
+      });
     }
 
     const {
@@ -257,6 +282,17 @@ router.post('/generate', async (req, res) => {
       questionTypesDesc += `，包含以下题型：${questionTypes.join('、')}`;
     }
 
+    const userAfterCost = await consumePoint({
+      userId: authUserId,
+      amount: 1,
+      reason: 'exam_generate',
+      metadata: {
+        questionCount: parseInt(questionCount, 10) || 15,
+        mode: 'exam'
+      }
+    });
+    consumedPoint = true;
+
     console.log(`[AI] 生成试卷: ${version} ${grade} ${subject} "${topic}" 难度${difficulty} 题型[${questionTypes.join(',')}] 数量${questionCount}`);
 
     const exam = await generateExam({
@@ -272,10 +308,27 @@ router.post('/generate', async (req, res) => {
       imageUrls
     });
 
-    res.json(exam);
+    res.json({
+      ...exam,
+      userPoints: userAfterCost.points
+    });
   } catch (error) {
+    if (consumedPoint && authUserId) {
+      try {
+        await refundPoint({
+          userId: authUserId,
+          amount: 1,
+          reason: 'generate_failed_refund',
+          metadata: { reason: String(error.message || '') }
+        });
+      } catch (refundError) {
+        console.error('积分回滚失败:', refundError.message);
+      }
+    }
     console.error('生成试卷失败:', error.message);
-    res.status(500).json({ error: '生成失败: ' + error.message });
+    const msg = String(error.message || '');
+    const isClientError = /积分不足|缺少|参数|请选择|请先/.test(msg);
+    res.status(isClientError ? 400 : 500).json({ error: '生成失败: ' + msg });
   }
 });
 

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>错题啄木鸟 - 管理后台</title>
+  <style>
+    :root {
+      --bg: #0a192f;
+      --panel: #112240;
+      --line: #64ffda;
+      --text: #ccd6f6;
+      --muted: #8892b0;
+      --warn: #f0ad4e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 20px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", sans-serif;
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid #233554;
+      border-top: 3px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    h1 {
+      margin: 0 0 6px 0;
+      color: var(--line);
+      font-size: 24px;
+    }
+    h2 {
+      margin: 0 0 12px 0;
+      color: var(--line);
+      font-size: 18px;
+    }
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    input, button, textarea {
+      border: 1px solid #233554;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: #0c1f3b;
+      color: var(--text);
+    }
+    input { min-width: 180px; }
+    button {
+      cursor: pointer;
+      background: rgba(100,255,218,0.18);
+      color: var(--line);
+      border-color: rgba(100,255,218,0.45);
+      font-weight: 700;
+    }
+    button:hover {
+      background: rgba(100,255,218,0.28);
+    }
+    .danger {
+      background: rgba(240,173,78,0.2);
+      color: #ffcc8a;
+      border-color: rgba(240,173,78,0.6);
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+    }
+    .stat-item {
+      background: rgba(10,25,47,0.8);
+      border: 1px solid #233554;
+      border-radius: 6px;
+      padding: 10px;
+    }
+    .stat-item .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    .stat-item .value {
+      color: var(--line);
+      font-weight: 800;
+      font-size: 20px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 150px;
+      resize: vertical;
+      font-family: Consolas, monospace;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border-bottom: 1px solid #233554;
+      padding: 8px 6px;
+      text-align: left;
+    }
+    th { color: var(--muted); font-weight: 600; }
+    .ok { color: #9beeb1; }
+    .used { color: var(--warn); }
+    .hidden { display: none; }
+    .key-pool {
+      margin-top: 10px;
+      display: grid;
+      gap: 6px;
+    }
+    .key-item {
+      background: rgba(10,25,47,0.75);
+      border: 1px solid #233554;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>错题啄木鸟 - 管理后台</h1>
+      <div class="hint">用于生成积分兑换券、查看兑换状态与用户积分概况。</div>
+    </div>
+
+    <div class="card" id="loginCard">
+      <h2>管理员登录</h2>
+      <div class="row">
+        <input id="adminUsername" placeholder="管理员用户名" autocomplete="username">
+        <input id="adminPassword" type="password" placeholder="管理员密码" autocomplete="current-password">
+        <button id="adminLoginBtn">登录</button>
+      </div>
+      <div class="hint" id="loginMsg" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card hidden" id="panelCard">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">后台面板</h2>
+        <button id="logoutBtn" class="danger">退出登录</button>
+      </div>
+
+      <div class="stats" id="statsBox" style="margin-top:10px"></div>
+      <div class="key-pool" id="keyPoolBox"></div>
+
+      <hr style="border:none;border-top:1px solid #233554;margin:14px 0">
+
+      <h2>批量生成兑换券</h2>
+      <div class="row">
+        <input id="couponPoints" type="number" min="1" value="10" placeholder="每张兑换券积分">
+        <input id="couponCount" type="number" min="1" max="500" value="20" placeholder="生成数量">
+        <button id="createCouponsBtn">生成兑换券</button>
+      </div>
+      <div class="hint" id="createMsg" style="margin-top:8px"></div>
+      <textarea id="couponOutput" placeholder="生成后的兑换码会显示在这里（每行一条：兑换码,积分）"></textarea>
+
+      <hr style="border:none;border-top:1px solid #233554;margin:14px 0">
+
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">兑换券列表</h2>
+        <button id="refreshCouponsBtn">刷新列表</button>
+      </div>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>兑换码</th>
+              <th>积分</th>
+              <th>状态</th>
+              <th>创建时间</th>
+              <th>兑换用户</th>
+              <th>兑换时间</th>
+            </tr>
+          </thead>
+          <tbody id="couponTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const ADMIN_TOKEN_KEY = 'wd_admin_token_v1';
+    const API_BASE = '/api/admin';
+
+    function getToken() {
+      return localStorage.getItem(ADMIN_TOKEN_KEY) || '';
+    }
+    function setToken(token) {
+      if (!token) {
+        localStorage.removeItem(ADMIN_TOKEN_KEY);
+        return;
+      }
+      localStorage.setItem(ADMIN_TOKEN_KEY, token);
+    }
+
+    function adminFetch(url, options = {}) {
+      const token = getToken();
+      const headers = Object.assign({}, options.headers || {});
+      if (token) headers.Authorization = `Bearer ${token}`;
+      return fetch(url, {
+        ...options,
+        headers
+      });
+    }
+
+    function setText(id, text, ok = true) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text || '';
+      el.className = ok ? 'hint ok' : 'hint used';
+    }
+
+    function renderStats(stats) {
+      const box = document.getElementById('statsBox');
+      const keyBox = document.getElementById('keyPoolBox');
+      if (!box) return;
+      const entries = [
+        ['用户总数', stats.totalUsers],
+        ['兑换券总数', stats.totalCoupons],
+        ['已兑换券', stats.usedCoupons],
+        ['未兑换券', stats.unusedCoupons],
+        ['累计发放积分', stats.totalIssuedPoints],
+        ['当前用户剩余积分', stats.totalRemainingPoints]
+      ];
+      box.innerHTML = entries.map(([label, value]) => (
+        `<div class="stat-item"><div class="label">${label}</div><div class="value">${value}</div></div>`
+      )).join('');
+      if (keyBox) {
+        const pool = Array.isArray(stats.aiKeyPool) ? stats.aiKeyPool : [];
+        keyBox.innerHTML = pool.map((item) => {
+          const cooling = item.cooling ? `冷却中 ${item.cooldownMsLeft}ms` : '可用';
+          return `<div class="key-item">Key#${item.index} | 状态:${cooling} | 并发:${item.inFlight} | 失败计数:${item.failCount} | 调用:${item.totalCalls}</div>`;
+        }).join('');
+      }
+    }
+
+    function renderCoupons(coupons) {
+      const body = document.getElementById('couponTableBody');
+      if (!body) return;
+      body.innerHTML = coupons.map((item) => {
+        const statusText = item.status === 'used'
+          ? '<span class="used">已兑换</span>'
+          : '<span class="ok">未兑换</span>';
+        return `
+          <tr>
+            <td>${item.id}</td>
+            <td>${item.code}</td>
+            <td>${item.points}</td>
+            <td>${statusText}</td>
+            <td>${item.createdAt || ''}</td>
+            <td>${item.redeemedBy || '-'}</td>
+            <td>${item.redeemedAt || '-'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function loadStats() {
+      const resp = await adminFetch(`${API_BASE}/stats`);
+      if (!resp.ok) throw new Error('读取统计失败');
+      const data = await resp.json();
+      renderStats(data);
+    }
+
+    async function loadCoupons() {
+      const resp = await adminFetch(`${API_BASE}/coupons?limit=300`);
+      if (!resp.ok) throw new Error('读取兑换券失败');
+      const data = await resp.json();
+      renderCoupons(data.coupons || []);
+    }
+
+    async function afterLogin() {
+      document.getElementById('loginCard').classList.add('hidden');
+      document.getElementById('panelCard').classList.remove('hidden');
+      await Promise.all([loadStats(), loadCoupons()]);
+    }
+
+    async function login() {
+      const username = document.getElementById('adminUsername').value.trim();
+      const password = document.getElementById('adminPassword').value;
+      setText('loginMsg', '正在登录...', true);
+      try {
+        const resp = await fetch(`${API_BASE}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || '登录失败');
+        setToken(data.token || '');
+        setText('loginMsg', '登录成功', true);
+        await afterLogin();
+      } catch (error) {
+        setText('loginMsg', error.message || '登录失败', false);
+      }
+    }
+
+    async function createCoupons() {
+      const points = Number.parseInt(document.getElementById('couponPoints').value, 10);
+      const quantity = Number.parseInt(document.getElementById('couponCount').value, 10);
+      setText('createMsg', '正在生成兑换券...', true);
+      try {
+        const resp = await adminFetch(`${API_BASE}/coupons/batch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ points, quantity })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || '生成失败');
+        const output = (data.coupons || [])
+          .map((item) => `${item.code},${item.points}`)
+          .join('\n');
+        document.getElementById('couponOutput').value = output;
+        setText('createMsg', `生成成功，共 ${data.created || 0} 张`, true);
+        await Promise.all([loadStats(), loadCoupons()]);
+      } catch (error) {
+        setText('createMsg', error.message || '生成失败', false);
+      }
+    }
+
+    function logout() {
+      setToken('');
+      document.getElementById('panelCard').classList.add('hidden');
+      document.getElementById('loginCard').classList.remove('hidden');
+    }
+
+    document.getElementById('adminLoginBtn').addEventListener('click', login);
+    document.getElementById('createCouponsBtn').addEventListener('click', createCoupons);
+    document.getElementById('refreshCouponsBtn').addEventListener('click', async () => {
+      try {
+        await Promise.all([loadStats(), loadCoupons()]);
+      } catch (error) {
+        setText('createMsg', error.message || '刷新失败', false);
+      }
+    });
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    (async function bootstrap() {
+      const token = getToken();
+      if (!token) return;
+      try {
+        await afterLogin();
+      } catch {
+        logout();
+      }
+    })();
+  </script>
+</body>
+</html>

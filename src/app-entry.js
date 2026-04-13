@@ -31,6 +31,14 @@ bindEvent('showOriginal', 'change', () => {
 bindEvent('count_similar', 'change', () => window.saveSettings?.());
 bindEvent('count_variant', 'change', () => window.saveSettings?.());
 bindEvent('count_application', 'change', () => window.saveSettings?.());
+bindEvent('openAuthBtn', 'click', () => window.openAuthModal?.());
+bindEvent('closeAuthModal', 'click', () => window.closeModal('authModal'));
+bindEvent('authRegisterBtn', 'click', () => window.registerAccount?.());
+bindEvent('authLoginBtn', 'click', () => window.loginAccount?.());
+bindEvent('redeemCouponBtn', 'click', () => window.openRedeemModal?.());
+bindEvent('closeRedeemModal', 'click', () => window.closeModal('redeemModal'));
+bindEvent('redeemSubmitBtn', 'click', () => window.redeemPoints?.());
+bindEvent('logoutBtn', 'click', () => window.logoutAccount?.());
 
 const backBtn = document.querySelector('.preview-bottom-bar .bar-btn');
 if (backBtn) {

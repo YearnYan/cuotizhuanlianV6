@@ -87,7 +87,7 @@ function buildCorsOptions() {
     },
     credentials: true,
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'X-CX-Request-Token', 'X-CX-Request-Id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CX-Request-Token', 'X-CX-Request-Id'],
     maxAge: 600
   };
 }

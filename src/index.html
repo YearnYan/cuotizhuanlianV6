@@ -14,6 +14,21 @@
                     <h1>错题啄木鸟</h1>
                     <p style="color:var(--text-dim);font-size:12px">WRONG QUESTION PRACTICE</p>
                 </div>
+                <div class="auth-panel" id="authPanel">
+                    <div class="auth-row">
+                        <div>
+                            <div class="auth-user" id="authUserName">未登录</div>
+                            <div class="auth-points">积分：<span id="authUserPoints">0</span></div>
+                        </div>
+                        <button class="auth-mini-btn" id="openAuthBtn" type="button">注册/登录</button>
+                    </div>
+                    <div class="auth-row auth-row-actions">
+                        <button class="auth-mini-btn" id="redeemCouponBtn" type="button">兑换积分</button>
+                        <button class="auth-mini-btn" id="logoutBtn" type="button">退出</button>
+                        <a class="auth-mini-btn auth-link-btn" href="/admin" target="_blank" rel="noopener">管理后台</a>
+                    </div>
+                    <div class="auth-tip" id="authTip">请先注册或登录，再上传错题并生成题目。</div>
+                </div>
 
                 <div>
                     <div class="section-title">上传错题</div>
@@ -183,6 +198,36 @@
             </div>
             <div style="color:var(--text-main);text-align:center;margin-bottom:20px">扫描下方二维码添加微信</div>
             <img src="https://placehold.co/240x240?text=WeChat" alt="赛博工头微信" class="qrcode-img">
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="authModal">
+        <div class="modal-box auth-modal-box">
+            <button class="modal-close" id="closeAuthModal">×</button>
+            <div class="modal-title">账号登录 / 注册</div>
+            <div class="auth-form">
+                <input id="authUsername" type="text" maxlength="24" placeholder="用户名（3-24位，中文/字母/数字/下划线）" autocomplete="username">
+                <input id="authPassword" type="password" maxlength="64" placeholder="密码（至少6位）" autocomplete="current-password">
+            </div>
+            <div class="auth-actions">
+                <button id="authRegisterBtn" class="btn-demo" type="button">注册</button>
+                <button id="authLoginBtn" class="btn-gen" type="button"><span>登录</span></button>
+            </div>
+            <div class="auth-tip" id="authModalTip"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="redeemModal">
+        <div class="modal-box auth-modal-box">
+            <button class="modal-close" id="closeRedeemModal">×</button>
+            <div class="modal-title">兑换积分</div>
+            <div class="auth-form">
+                <input id="redeemCodeInput" type="text" maxlength="40" placeholder="请输入兑换券码">
+            </div>
+            <div class="auth-actions">
+                <button id="redeemSubmitBtn" class="btn-gen" type="button"><span>立即兑换</span></button>
+            </div>
+            <div class="auth-tip" id="redeemTip"></div>
         </div>
     </div>
 

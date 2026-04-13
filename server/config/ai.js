@@ -14,9 +14,18 @@ function normalizeOpenAIBaseURL(apiURL) {
 }
 
 const apiURL = process.env.AI_API_URL || DEFAULT_AI_API_URL;
+const keysFromList = String(process.env.AI_API_KEYS || '')
+  .split(/[,\n]/)
+  .map((item) => item.trim())
+  .filter(Boolean);
+const keys = Array.from(new Set([
+  ...keysFromList,
+  String(process.env.AI_API_KEY || '').trim()
+].filter(Boolean)));
 
 const AI_CONFIG = {
-  apiKey: process.env.AI_API_KEY || '',
+  apiKey: keys[0] || '',
+  apiKeys: keys,
   apiURL,
   baseURL: normalizeOpenAIBaseURL(apiURL),
   model: process.env.AI_MODEL || 'gemini-3.1-pro-preview',
@@ -24,8 +33,8 @@ const AI_CONFIG = {
   temperature: parseFloat(process.env.AI_TEMPERATURE || '0.7')
 };
 
-if (!AI_CONFIG.apiKey) {
-  throw new Error('缺少 AI_API_KEY，请在 server/.env 中配置');
+if (!AI_CONFIG.apiKeys.length) {
+  throw new Error('缺少 AI_API_KEY 或 AI_API_KEYS，请在 server/.env 中配置');
 }
 
 module.exports = { AI_CONFIG };
