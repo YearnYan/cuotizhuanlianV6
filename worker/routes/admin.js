@@ -6,7 +6,7 @@ import { getAIKeyPoolSnapshot } from '../services/ai-key-pool.js';
 function getAdminCredentials(env) {
   return {
     username: String(env?.ADMIN_USERNAME || 'admin').trim(),
-    password: String(env?.ADMIN_PASSWORD || 'admin123456')
+    password: String(env?.ADMIN_PASSWORD || 'admin123456').trim()
   };
 }
 
@@ -15,7 +15,7 @@ export function adminRoutes(app) {
     try {
       const body = await c.req.json();
       const username = String(body?.username || '').trim();
-      const password = String(body?.password || '');
+      const password = String(body?.password || '').trim();
       if (!username || !password) {
         return c.json({ error: '请输入管理员用户名和密码' }, 400);
       }
@@ -80,4 +80,3 @@ export function adminRoutes(app) {
     }
   });
 }
-
