@@ -122,7 +122,7 @@ function updateAuthPanel(message = '') {
         } else if (!isLoggedIn()) {
             tipEl.textContent = '请先注册或登录，再上传错题并生成题目。';
         } else if (Number(state.auth.user?.points || 0) <= 0) {
-            tipEl.textContent = '积分不足，请先兑换积分后再生成题目（每次生成消耗1积分）。';
+            tipEl.textContent = '已登录，当前积分为0，请先兑换积分后再生成题目（每次生成消耗1积分）。';
         } else {
             tipEl.textContent = '已登录，可上传错题并生成题目（每次生成消耗1积分）。';
         }
@@ -200,7 +200,7 @@ async function registerAccount() {
         await loadRuntimeConfig();
         renderQuestionTypes();
         applyQuestionTypeCountsToInputs();
-        updateAuthPanel('注册成功，欢迎使用错题啄木鸟');
+        updateAuthPanel('注册成功，当前积分为0，请先兑换积分后再生成题目。');
         setModalTip('authModalTip', '注册成功');
         closeModal('authModal');
     } catch (error) {

@@ -54,13 +54,17 @@ async function writeData(data) {
 }
 
 function runMutation(mutator) {
-  mutationQueue = mutationQueue.then(async () => {
+  const task = mutationQueue
+    // 前一个写操作失败后仍需恢复队列，避免后续请求被同一错误“连坐”
+    .catch(() => {})
+    .then(async () => {
     const data = await readData();
     const result = await mutator(data);
     await writeData(data);
     return result;
   });
-  return mutationQueue;
+  mutationQueue = task.catch(() => {});
+  return task;
 }
 
 function normalizeUsername(username) {
@@ -349,4 +353,3 @@ module.exports = {
   listCoupons,
   getAdminStats
 };
-
