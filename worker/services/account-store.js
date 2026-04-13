@@ -3,7 +3,8 @@ const MAX_PASSWORD_LENGTH = 64;
 const MIN_USERNAME_LENGTH = 3;
 const MAX_USERNAME_LENGTH = 24;
 
-const PBKDF2_ITERATIONS = 120000;
+// Cloudflare Workers WebCrypto 当前对 PBKDF2 迭代次数有上限限制（<=100000）
+const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_HASH_LENGTH = 32;
 const PBKDF2_DIGEST = 'SHA-256';
 
@@ -344,4 +345,3 @@ export async function getAdminStats() {
     totalRemainingPoints
   };
 }
-
