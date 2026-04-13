@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统测试页面</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a1a; color: #fff; }
+        .test-section { margin: 20px 0; padding: 15px; background: #2a2a2a; border-radius: 8px; }
+        .test-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #00ff88; }
+        .test-result { margin: 10px 0; padding: 10px; background: #333; border-radius: 4px; }
+        .success { color: #00ff88; }
+        .error { color: #ff4444; }
+        .pending { color: #ffaa00; }
+        button { padding: 10px 20px; background: #00ff88; color: #000; border: none;
+                 border-radius: 4px; cursor: pointer; font-weight: bold; margin: 5px; }
+        button:hover { background: #00dd77; }
+        pre { background: #1a1a1a; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>赛博出卷机 - 系统测试</h1>
+
+    <div class="test-section">
+        <div class="test-title">1. 服务器健康检查</div>
+        <button onclick="testHealth()">测试</button>
+        <div id="health-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">2. 教材版本列表</div>
+        <button onclick="testVersions()">测试</button>
+        <div id="versions-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">3. 知识点查询（人教版小学一年级语文）</div>
+        <button onclick="testTopics()">测试</button>
+        <div id="topics-result" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">4. 前端页面访问</div>
+        <button onclick="window.open('http://localhost:5000', '_blank')">打开前端页面</button>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        async function testHealth() {
+            const result = document.getElementById('health-result');
+            result.innerHTML = '<span class="pending">测试中...</span>';
+
+            try {
+                const resp = await fetch(`${API_BASE}/health`);
+                const data = await resp.json();
+
+                if (resp.ok && data.status === 'ok') {
+                    result.innerHTML = `<span class="success">✓ 成功</span><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    result.innerHTML = `<span class="error">✗ 失败</span><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (e) {
+                result.innerHTML = `<span class="error">✗ 错误: ${e.message}</span>`;
+            }
+        }
+
+        async function testVersions() {
+            const result = document.getElementById('versions-result');
+            result.innerHTML = '<span class="pending">测试中...</span>';
+
+            try {
+                const resp = await fetch(`${API_BASE}/knowledge/versions`);
+                const data = await resp.json();
+
+                if (resp.ok && data.versions) {
+                    result.innerHTML = `<span class="success">✓ 成功 (${data.versions.length}个版本)</span><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    result.innerHTML = `<span class="error">✗ 失败</span><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (e) {
+                result.innerHTML = `<span class="error">✗ 错误: ${e.message}</span>`;
+            }
+        }
+
+        async function testTopics() {
+            const result = document.getElementById('topics-result');
+            result.innerHTML = '<span class="pending">测试中...</span>';
+
+            try {
+                const url = `${API_BASE}/knowledge/topics?version=人教版&grade=小学一年级&subject=语文`;
+                const resp = await fetch(url);
+                const data = await resp.json();
+
+                const topicsCount = (data.topics || []).length;
+                const examPointsCount = (data.examPoints || []).length;
+
+                if (topicsCount > 0 || examPointsCount > 0) {
+                    result.innerHTML = `<span class="success">✓ 成功 (${topicsCount}个知识点, ${examPointsCount}个考点)</span><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    result.innerHTML = `<span class="error">⚠ 返回空数据</span><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (e) {
+                result.innerHTML = `<span class="error">✗ 错误: ${e.message}</span>`;
+            }
+        }
+
+        // 页面加载时自动运行所有测试
+        window.onload = () => {
+            setTimeout(() => {
+                testHealth();
+                setTimeout(() => testVersions(), 500);
+                setTimeout(() => testTopics(), 1000);
+            }, 500);
+        };
+    </script>
+</body>
+</html>

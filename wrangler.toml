@@ -1,0 +1,17 @@
+name = "cuoti-zhuanlianji-trial"
+main = "worker/index.js"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+routes = [
+  { pattern = "ctfs.gongtouai.top/*", zone_name = "gongtouai.top" }
+]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[vars]
+AI_MODEL = "gemini-3.1-pro-preview"
+AI_API_URL = "https://api.linapi.net/v1/chat/completions"

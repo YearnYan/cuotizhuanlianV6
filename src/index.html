@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>错题啄木鸟</title>
+    <link rel="stylesheet" href="style.css?v=5">
+</head>
+<body>
+    <div class="main-container" id="mainContent">
+        <div class="container">
+            <div class="console-panel">
+                <div>
+                    <h1>错题啄木鸟</h1>
+                    <p style="color:var(--text-dim);font-size:12px">WRONG QUESTION PRACTICE</p>
+                </div>
+
+                <div>
+                    <div class="section-title">上传错题</div>
+                    <div class="upload-tip">每次上传1道完整错题；英语请上传包含整篇文章和全部小问的一整题。</div>
+                    <input id="wrongQuestionFile" class="upload-input-large" type="file" accept=".png,.jpg,.jpeg,.pdf">
+                    <div id="uploadStatus" class="upload-status">支持格式：PNG/JPG/PDF</div>
+                    <div id="wrongQuestionPreview" class="wrong-question-preview"></div>
+                    <div id="analysisResult" class="analysis-result" style="display:none">
+                        <div class="analysis-item">
+                            <div class="analysis-label">所学</div>
+                            <div id="analysisKnowledgePoints" class="analysis-content"></div>
+                        </div>
+                        <div class="analysis-item">
+                            <div class="analysis-label">所考</div>
+                            <div id="analysisExamPoints" class="analysis-content"></div>
+                        </div>
+                        <div class="analysis-item">
+                            <div class="analysis-label">答案解析</div>
+                            <div id="analysisAnswer" class="analysis-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="section-title">出题配置</div>
+                    <div style="margin-bottom:12px">
+                        <label style="font-size:14px;display:block;margin-bottom:6px">题型选择</label>
+                        <div id="questionTypeContainer" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;padding:8px;background:#0a192f;border:1px solid #233554;border-radius:2px">
+                            <span style="color:#8892b0;font-size:12px">正在加载题型...</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:12px">
+                        <label style="font-size:14px;display:block;margin-bottom:6px">题目数量</label>
+                        <div class="type-count-grid">
+                            <div class="type-count-row">
+                                <span class="type-count-label">相似题</span>
+                                <select id="count_similar" class="type-count-select">
+                                    <option value="1" selected>1题</option>
+                                    <option value="2">2题</option>
+                                    <option value="3">3题</option>
+                                    <option value="4">4题</option>
+                                    <option value="5">5题</option>
+                                </select>
+                            </div>
+                            <div class="type-count-row">
+                                <span class="type-count-label">变式题</span>
+                                <select id="count_variant" class="type-count-select">
+                                    <option value="1" selected>1题</option>
+                                    <option value="2">2题</option>
+                                    <option value="3">3题</option>
+                                    <option value="4">4题</option>
+                                    <option value="5">5题</option>
+                                </select>
+                            </div>
+                            <div class="type-count-row">
+                                <span class="type-count-label">综合应用题</span>
+                                <select id="count_application" class="type-count-select">
+                                    <option value="1" selected>1题</option>
+                                    <option value="2">2题</option>
+                                    <option value="3">3题</option>
+                                    <option value="4">4题</option>
+                                    <option value="5">5题</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-row" style="margin-top:10px">
+                        <label style="font-size:14px;display:flex;align-items:center;gap:5px">
+                            <input type="checkbox" id="showOriginal" checked style="width:auto">
+                            是否显示原题
+                        </label>
+                    </div>
+                    <div class="control-row" style="margin-top:10px">
+                        <label style="font-size:14px;display:flex;align-items:center;gap:5px">
+                            <input type="checkbox" id="showAnswer" checked style="width:auto">
+                            显示答案和解析
+                        </label>
+                    </div>
+                </div>
+
+                <button class="btn-gen" id="generateBtn">
+                    <span>⚡ 生成题目</span>
+                </button>
+
+                <div style="margin-top:20px;padding:15px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:13px;color:var(--text-dim);text-align:center;line-height:1.6">
+                    <div style="margin-bottom:5px">错题宣言</div>
+                    <div style="color:var(--line-blue);font-weight:500">错题一扫光。分数蹭蹭涨</div>
+                </div>
+            </div>
+
+            <div class="preview-wrapper" id="previewWrapper">
+                <div class="loading-overlay" id="loading">
+                    <div class="loader"></div>
+                    <div id="loadingTitle">正在生成题目...</div>
+                    <div id="loadingSubtitle" style="font-size:12px;margin-top:5px;opacity:0.7">正在构建知识图谱与题目结构</div>
+                    <div class="fake-progress-wrap" id="fakeProgressWrap">
+                        <div class="fake-progress-track">
+                            <div class="fake-progress-bar" id="fakeProgressBar"></div>
+                        </div>
+                        <div class="fake-progress-text" id="fakeProgressText">0%</div>
+                    </div>
+                </div>
+
+                <div class="live-original-panel" id="liveOriginalPanel">
+                    <div class="group-title">原题展示</div>
+                    <img id="liveOriginalImage" alt="原题图片">
+                </div>
+
+                <div class="question-select-mode" id="selectMode">
+                    <div style="text-align:center;color:#999;padding-top:100px">
+                        请先上传1道完整错题（英语请上传整题），再点击“生成题目”
+                    </div>
+                </div>
+
+                <div class="compose-bar" id="composeBar" style="display:none">
+                    <span class="count">已选 <span id="selectedCount">0</span> 题</span>
+                    <button class="btn-compose" id="composeBtn" disabled>组卷</button>
+                </div>
+
+                <div class="a4-paper" id="paper">
+                    <div class="seal-line"><div class="seal-text">密封线内不要答题</div></div>
+                    <div class="exam-header">
+                        <div class="secret-mark">绝密 ★ 启用前</div>
+                        <div class="exam-title" id="paperTitle" contenteditable="true" title="点击修改标题">试卷预览</div>
+                        <div class="title-edit-hint" id="titleEditHint">点击标题可自定义修改 ✎</div>
+                        <div class="exam-info">
+                            姓名：<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                            班级：<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                            考号：<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                        </div>
+                    </div>
+                    <div id="examContent"></div>
+                    <div class="answer-key" id="answerArea">
+                        <div class="group-title">参考答案与解析</div>
+                        <div id="answerContent"></div>
+                    </div>
+                </div>
+
+                <div class="preview-bottom-bar" id="downloadBar">
+                    <button class="bar-btn">← 返回选题</button>
+                    <button class="bar-btn primary">导出PDF</button>
+                    <button class="bar-btn primary">导出Word</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="contactModal">
+        <div class="modal-box" style="text-align:center;max-width:500px;position:relative">
+            <button class="modal-close">×</button>
+            <div class="modal-title">联系赛博工头</div>
+            <div style="text-align:left;margin-bottom:20px;line-height:1.8">
+                <div style="background:rgba(100,255,218,0.1);padding:15px;border-radius:6px;margin-bottom:15px">
+                    <div style="color:var(--line-blue);font-weight:bold;margin-bottom:8px">购买正式版</div>
+                    <div style="color:var(--text-main);font-size:14px">联系赛博工头购买正式版，解锁无限使用次数。</div>
+                </div>
+                <div style="background:rgba(240,173,78,0.1);padding:15px;border-radius:6px">
+                    <div style="color:#f0ad4e;font-weight:bold;margin-bottom:8px">功能定制服务</div>
+                    <div style="color:var(--text-main);font-size:14px">
+                        有额外功能需求？找赛博工头定制开发<br>
+                        <span style="color:#f0ad4e;font-weight:bold">只需 ¥9.9</span>
+                        <span style="color:var(--line-blue)"> 2天内完成</span>
+                    </div>
+                </div>
+            </div>
+            <div style="color:var(--text-main);text-align:center;margin-bottom:20px">扫描下方二维码添加微信</div>
+            <img src="https://placehold.co/240x240?text=WeChat" alt="赛博工头微信" class="qrcode-img">
+        </div>
+    </div>
+
+    <script type="module" src="/app-entry.js"></script>
+</body>
+</html>
