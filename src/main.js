@@ -7,6 +7,8 @@ const FALLBACK_COUNT_LIMITS = { min: 1, max: 5 };
 const DEFAULT_PREVIEW_TITLE = '错题啄木鸟专练试卷';
 const ENGLISH_SUBJECT_PATTERN = /(英语|english)/i;
 const AUTH_TOKEN_STORAGE_KEY = 'wd_auth_token_v1';
+const HISTORY_STORAGE_KEY_PREFIX = 'exam_history_v1';
+const HISTORY_MAX_COUNT = 30;
 const AUTH_API = {
     register: `${API_BASE}/auth/register`,
     login: `${API_BASE}/auth/login`,
@@ -30,6 +32,7 @@ const state = {
     savedQuestionTypeCounts: {},
     lastPreviewTitle: '',
     lastPreviewGroups: null,
+    historyRecords: [],
     auth: {
         token: '',
         user: null,
@@ -60,7 +63,9 @@ async function bootstrapApp() {
     initAuthState();
     await refreshCurrentUser();
     await loadRuntimeConfig();
+    loadHistoryRecords();
     loadSettings();
+    renderHistoryList();
     renderQuestionTypes();
     applyQuestionTypeCountsToInputs();
     applyAnswerVisibility();
@@ -83,6 +88,12 @@ function setAuthToken(token) {
     } else {
         localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     }
+}
+
+function getHistoryStorageKey() {
+    const username = String(state.auth.user?.username || '').trim();
+    if (!username) return HISTORY_STORAGE_KEY_PREFIX;
+    return `${HISTORY_STORAGE_KEY_PREFIX}_${encodeURIComponent(username)}`;
 }
 
 function getAuthHeaders(headers = {}) {
@@ -149,10 +160,14 @@ async function refreshCurrentUser() {
         const data = await resp.json();
         state.auth.user = data.user || null;
         updateAuthPanel();
+        loadHistoryRecords();
+        renderHistoryList();
     } catch {
         setAuthToken('');
         state.auth.user = null;
         updateAuthPanel();
+        loadHistoryRecords();
+        renderHistoryList();
     }
 }
 
@@ -201,6 +216,8 @@ async function registerAccount() {
         renderQuestionTypes();
         applyQuestionTypeCountsToInputs();
         updateAuthPanel('注册成功，当前积分为0，请先兑换积分后再生成题目。');
+        loadHistoryRecords();
+        renderHistoryList();
         setModalTip('authModalTip', '注册成功');
         closeModal('authModal');
     } catch (error) {
@@ -228,6 +245,8 @@ async function loginAccount() {
         renderQuestionTypes();
         applyQuestionTypeCountsToInputs();
         updateAuthPanel('登录成功');
+        loadHistoryRecords();
+        renderHistoryList();
         setModalTip('authModalTip', '登录成功');
         closeModal('authModal');
     } catch (error) {
@@ -239,6 +258,8 @@ function logoutAccount() {
     setAuthToken('');
     state.auth.user = null;
     updateAuthPanel('已退出登录');
+    loadHistoryRecords();
+    renderHistoryList();
 }
 
 async function redeemPoints() {
@@ -597,6 +618,165 @@ function setUploadStatus(text, status = '') {
     if (status === 'ok') el.classList.add('ok');
     if (status === 'error') el.classList.add('error');
     if (status === 'warn') el.classList.add('warn');
+}
+
+function loadHistoryRecords() {
+    const saved = localStorage.getItem(getHistoryStorageKey());
+    if (!saved) {
+        state.historyRecords = [];
+        return;
+    }
+
+    try {
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) {
+            state.historyRecords = [];
+            return;
+        }
+
+        state.historyRecords = parsed
+            .map((item) => normalizeHistoryRecord(item))
+            .filter(Boolean);
+    } catch (error) {
+        console.error('加载历史记录失败:', error);
+        state.historyRecords = [];
+    }
+}
+
+function normalizeHistoryRecord(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    if (!Array.isArray(raw.questions)) return null;
+    if (!Array.isArray(raw.selectedQuestionTypes)) return null;
+    if (!raw.data || typeof raw.data !== 'object') return null;
+    if (!Array.isArray(raw.data.questions)) return null;
+
+    const id = String(raw.id || '').trim() || `h_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const createdAt = Number.isFinite(Number(raw.createdAt)) ? Number(raw.createdAt) : Date.now();
+    const knowledgePoint = String(raw.knowledgePoint || '未命名知识点').trim() || '未命名知识点';
+
+    return {
+        id,
+        createdAt,
+        knowledgePoint,
+        questionCount: Number.isFinite(Number(raw.questionCount)) ? Number(raw.questionCount) : raw.questions.length,
+        selectedQuestionTypes: raw.selectedQuestionTypes.map((item) => String(item || '').trim()).filter(Boolean),
+        questionTypeCounts: raw.questionTypeCounts && typeof raw.questionTypeCounts === 'object' ? raw.questionTypeCounts : {},
+        questions: raw.questions,
+        data: raw.data
+    };
+}
+
+function persistHistoryRecords() {
+    try {
+        localStorage.setItem(getHistoryStorageKey(), JSON.stringify(state.historyRecords));
+    } catch (error) {
+        console.error('保存历史记录失败:', error);
+    }
+}
+
+function pickHistoryKnowledgePoint() {
+    const points = Array.isArray(state.analysis?.knowledgePoints) ? state.analysis.knowledgePoints : [];
+    const first = points.find((item) => String(item || '').trim());
+    return String(first || state.analysis?.subject || '未命名知识点').trim();
+}
+
+function saveHistoryRecord(data, selectedQuestionTypes, questionTypeCounts) {
+    if (!data || !Array.isArray(data.questions) || data.questions.length === 0) return;
+
+    const flattenedQuestions = [];
+    for (const group of data.questions) {
+        if (!group || !Array.isArray(group.items)) continue;
+        for (const item of group.items) {
+            if (!item) continue;
+            flattenedQuestions.push({
+                ...item,
+                groupType: group.type,
+                groupTitle: group.title
+            });
+        }
+    }
+
+    const record = {
+        id: `h_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`,
+        createdAt: Date.now(),
+        knowledgePoint: pickHistoryKnowledgePoint(),
+        questionCount: flattenedQuestions.length,
+        selectedQuestionTypes: selectedQuestionTypes.slice(),
+        questionTypeCounts: { ...questionTypeCounts },
+        questions: flattenedQuestions,
+        data
+    };
+
+    state.historyRecords.unshift(record);
+    if (state.historyRecords.length > HISTORY_MAX_COUNT) {
+        state.historyRecords.length = HISTORY_MAX_COUNT;
+    }
+    persistHistoryRecords();
+    renderHistoryList();
+}
+
+function formatHistoryTime(timestamp) {
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return '未知时间';
+
+    const pad = (value) => String(value).padStart(2, '0');
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hour = pad(date.getHours());
+    const minute = pad(date.getMinutes());
+    return `${year}-${month}-${day} ${hour}:${minute}`;
+}
+
+function buildHistoryRecordName(record, index) {
+    return `${index + 1}. ${record.knowledgePoint} · ${formatHistoryTime(record.createdAt)}`;
+}
+
+function renderHistoryList() {
+    const list = document.getElementById('historyList');
+    if (!list) return;
+
+    if (!Array.isArray(state.historyRecords) || state.historyRecords.length === 0) {
+        list.innerHTML = '<div class="history-empty">暂无历史题目记录。每次成功生成题目后会自动保存，可随时回看并继续组卷。</div>';
+        return;
+    }
+
+    const html = state.historyRecords.map((record, index) => {
+        const name = buildHistoryRecordName(record, index);
+        const typeText = (record.selectedQuestionTypes || []).join(' / ') || '未记录题型';
+        const meta = `题目数：${record.questionCount || 0}｜题型：${typeText}`;
+        return `
+            <div class="history-item">
+                <div class="history-item-name">${escapeHtml(name)}</div>
+                <div class="history-item-meta">${escapeHtml(meta)}</div>
+                <button class="history-item-btn" type="button" data-history-id="${escapeHtml(record.id)}">查看并组卷</button>
+            </div>
+        `;
+    }).join('');
+
+    list.innerHTML = html;
+}
+
+function openHistoryModal() {
+    if (!requireLoginOrAlert()) return;
+    renderHistoryList();
+    const modal = document.getElementById('historyModal');
+    if (modal) {
+        modal.classList.add('show');
+    }
+}
+
+function restoreHistoryRecord(recordId) {
+    const target = state.historyRecords.find((item) => item.id === recordId);
+    if (!target) {
+        alert('该历史记录不存在或已失效');
+        return;
+    }
+
+    state.currentExamData = target.data;
+    renderQuestionCards(target.data, Date.now());
+    switchToSelectMode();
+    closeModal('historyModal');
 }
 
 function renderWrongQuestionPreview(url) {
@@ -1010,6 +1190,7 @@ async function generateExam() {
 
         if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
             state.currentExamData = data;
+            saveHistoryRecord(data, selectedQuestionTypes, questionTypeCounts);
             renderQuestionCards(data, requestToken);
         } else if (data.error) {
             alert('生成失败：' + data.error);
@@ -1723,6 +1904,8 @@ Object.assign(window, {
     handleShowOriginalChange,
     openAuthModal,
     openRedeemModal,
+    openHistoryModal,
+    restoreHistoryRecord,
     registerAccount,
     loginAccount,
     logoutAccount,

@@ -32,11 +32,13 @@ bindEvent('count_similar', 'change', () => window.saveSettings?.());
 bindEvent('count_variant', 'change', () => window.saveSettings?.());
 bindEvent('count_application', 'change', () => window.saveSettings?.());
 bindEvent('openAuthBtn', 'click', () => window.openAuthModal?.());
+bindEvent('historyBtn', 'click', () => window.openHistoryModal?.());
 bindEvent('closeAuthModal', 'click', () => window.closeModal('authModal'));
 bindEvent('authRegisterBtn', 'click', () => window.registerAccount?.());
 bindEvent('authLoginBtn', 'click', () => window.loginAccount?.());
 bindEvent('redeemCouponBtn', 'click', () => window.openRedeemModal?.());
 bindEvent('closeRedeemModal', 'click', () => window.closeModal('redeemModal'));
+bindEvent('closeHistoryModal', 'click', () => window.closeModal('historyModal'));
 bindEvent('redeemSubmitBtn', 'click', () => window.redeemPoints?.());
 bindEvent('logoutBtn', 'click', () => window.logoutAccount?.());
 
@@ -56,4 +58,17 @@ if (exportButtons[1]) {
 const modalCloseBtn = document.querySelector('#contactModal .modal-close');
 if (modalCloseBtn) {
   modalCloseBtn.addEventListener('click', () => window.closeModal('contactModal'));
+}
+
+const historyList = document.getElementById('historyList');
+if (historyList) {
+  historyList.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest('button[data-history-id]');
+    if (!button) return;
+    const recordId = button.getAttribute('data-history-id') || '';
+    if (!recordId) return;
+    window.restoreHistoryRecord?.(recordId);
+  });
 }

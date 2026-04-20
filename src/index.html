@@ -113,6 +113,9 @@
                 <button class="btn-gen" id="generateBtn">
                     <span>⚡ 生成题目</span>
                 </button>
+                <button class="btn-history" id="historyBtn" type="button">
+                    <span>🕘 历史题目</span>
+                </button>
 
                 <div class="manifesto-card">
                     <div class="manifesto-title">错题宣言</div>
@@ -230,6 +233,14 @@
                 <button id="redeemSubmitBtn" class="btn-gen" type="button"><span>立即兑换</span></button>
             </div>
             <div class="auth-tip" id="redeemTip"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="historyModal">
+        <div class="modal-box history-modal-box">
+            <button class="modal-close" id="closeHistoryModal">×</button>
+            <div class="modal-title">历史题目</div>
+            <div id="historyList" class="history-list"></div>
         </div>
     </div>
 
