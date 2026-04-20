@@ -701,6 +701,10 @@ async function analyzeWrongQuestion({
     r = r.replace(/\\dfrac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
     r = r.replace(/\\tfrac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
     r = r.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
+    r = r.replace(/\b(?:dfrac|tfrac|frac)\s*-\s*\(([^()]+)\)\s*\/\s*\(([^()]+)\)/gi, '(-$1)/($2)');
+    r = r.replace(/\b(?:dfrac|tfrac|frac)\s*\(([^()]+)\)\s*\/\s*\(([^()]+)\)/gi, '($1)/($2)');
+    r = r.replace(/\b(?:dfrac|tfrac|frac)\s*-\s*([A-Za-z0-9.]+)\s*\/\s*([A-Za-z0-9.]+)/gi, '(-$1)/($2)');
+    r = r.replace(/\b(?:dfrac|tfrac|frac)\s*([A-Za-z0-9.]+)\s*\/\s*([A-Za-z0-9.]+)/gi, '($1)/($2)');
     r = r.replace(/\\sqrt\{([^{}]*)\}/g, '√($1)');
     r = r.replace(/\\sqrt\[(\d+)\]\{([^{}]*)\}/g, '$1√($2)');
     r = r.replace(/\\(?:text|mathrm|mathbf|mathit|operatorname)\{([^{}]*)\}/g, '$1');
@@ -753,8 +757,11 @@ async function analyzeWrongQuestion({
 
     r = r.replace(/\^\{([^{}]*)\}/g, '^($1)');
     r = r.replace(/_\{([^{}]*)\}/g, '_($1)');
+    r = r.replace(/\^(-?\d+(?:\.\d+)?)/g, '^($1)');
+    r = r.replace(/_([A-Za-z0-9]{1,8})\b/g, '_($1)');
     // 仅移除命令前导反斜杠，避免误删普通字母（如 \A 误删为 ''）
     r = r.replace(/\\([a-zA-Z]+)(?=\s|[{}()[\],.;:!?+\-*/=<>]|$)/g, '$1');
+    r = r.replace(/\b(?:dfrac|tfrac|frac)\b/gi, '');
     r = r.replace(/\\([{}$%&_#])/g, '$1');
     r = r.replace(/\\/g, '');
     r = r.replace(/[{}]/g, '');
@@ -1172,6 +1179,10 @@ function postProcessLatexSymbols(exam) {
     // 2. 处理LaTeX公式命令（从复杂到简单）
     r = r.replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '($1)/($2)');
     r = r.replace(/\\frac\(([^)]*)\)\(([^)]*)\)/g, '($1)/($2)');
+    r = r.replace(/\b(?:dfrac|tfrac|frac)\s*-\s*\(([^()]+)\)\s*\/\s*\(([^()]+)\)/gi, '(-$1)/($2)');
+    r = r.replace(/\b(?:dfrac|tfrac|frac)\s*\(([^()]+)\)\s*\/\s*\(([^()]+)\)/gi, '($1)/($2)');
+    r = r.replace(/\b(?:dfrac|tfrac|frac)\s*-\s*([A-Za-z0-9.]+)\s*\/\s*([A-Za-z0-9.]+)/gi, '(-$1)/($2)');
+    r = r.replace(/\b(?:dfrac|tfrac|frac)\s*([A-Za-z0-9.]+)\s*\/\s*([A-Za-z0-9.]+)/gi, '($1)/($2)');
     r = r.replace(/\\sqrt\[(\d+)\]\{([^}]*)\}/g, '$1√($2)');
     r = r.replace(/\\sqrt\{([^}]*)\}/g, '√($1)');
     r = r.replace(/\\overrightarrow\{([^}]*)\}/g, '→$1');
@@ -1228,6 +1239,7 @@ function postProcessLatexSymbols(exam) {
 
     // 5. 清理残留命令：仅去掉前导反斜杠，避免误删普通字母
     r = r.replace(/\\([a-zA-Z]+)(?=\s|[{}()[\],.;:!?+\-*/=<>]|$)/g, '$1');
+    r = r.replace(/\b(?:dfrac|tfrac|frac)\b/gi, '');
     r = r.replace(/\\([{}$%&_#])/g, '$1');
     r = r.replace(/\\/g, '');
 

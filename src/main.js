@@ -747,8 +747,8 @@ function renderHistoryList() {
         const meta = `题目数：${record.questionCount || 0}｜题型：${typeText}`;
         return `
             <div class="history-item">
-                <div class="history-item-name">${escapeHtml(name)}</div>
-                <div class="history-item-meta">${escapeHtml(meta)}</div>
+                <div class="history-item-name">${formatMathHtml(name)}</div>
+                <div class="history-item-meta">${formatMathHtml(meta)}</div>
                 <button class="history-item-btn" type="button" data-history-id="${escapeHtml(record.id)}">查看并组卷</button>
             </div>
         `;
@@ -804,7 +804,7 @@ function renderAnalysisResult() {
 
     const toListText = (list) => {
         if (!Array.isArray(list) || list.length === 0) return '未识别到';
-        return list.map((item) => `• ${escapeHtml(item)}`).join('<br>');
+        return list.map((item) => `• ${formatMathHtml(item)}`).join('<br>');
     };
 
     const knowledgeEl = document.getElementById('analysisKnowledgePoints');
@@ -813,7 +813,7 @@ function renderAnalysisResult() {
 
     if (knowledgeEl) knowledgeEl.innerHTML = toListText(state.analysis.knowledgePoints);
     if (examEl) examEl.innerHTML = toListText(state.analysis.examPoints);
-    if (answerEl) answerEl.textContent = normalizeMathTextForDisplay(state.analysis.answerAnalysis || '未识别到');
+    if (answerEl) answerEl.innerHTML = formatMathHtml(state.analysis.answerAnalysis || '未识别到');
 
     panel.style.display = 'block';
 }
@@ -1226,7 +1226,7 @@ function renderQuestionCards(data, figureLoadToken = Date.now()) {
     if (data.questions && Array.isArray(data.questions)) {
         for (const group of data.questions) {
             if (!group || !Array.isArray(group.items)) continue;
-            html += `<div class="group-header">${escapeHtml(group.title || '')}</div>`;
+            html += `<div class="group-header">${formatMathHtml(group.title || '')}</div>`;
             for (const item of group.items) {
                 if (!item) continue;
                 const idx = globalIndex++;
@@ -1234,10 +1234,10 @@ function renderQuestionCards(data, figureLoadToken = Date.now()) {
 
                 html += `<div class="question-card" data-idx="${idx}" onclick="toggleQuestion(${idx})">`;
                 html += '<div class="select-check">&#10003;</div>';
-                html += `<div class="q-stem">${item.index || ''}. ${escapeHtml(item.stem || '')}</div>`;
+                html += `<div class="q-stem">${item.index || ''}. ${formatMathHtml(item.stem || '')}</div>`;
 
                 if (Array.isArray(item.options) && item.options.length > 0) {
-                    html += `<div class="q-options">${item.options.filter(Boolean).map((opt) => `<div class="q-option">${escapeHtml(opt)}</div>`).join('')}</div>`;
+                    html += `<div class="q-options">${item.options.filter(Boolean).map((opt) => `<div class="q-option">${formatMathHtml(opt)}</div>`).join('')}</div>`;
                 }
 
                 if (item.figure) {
@@ -1473,15 +1473,15 @@ function renderExamPreview(title, groups) {
     for (const [, group] of Object.entries(groups)) {
         if (!group || !group.items || group.items.length === 0) continue;
 
-        html += `<div class="question-group"><div class="group-title">${escapeHtml(group.title || '')}</div>`;
+        html += `<div class="question-group"><div class="group-title">${formatMathHtml(group.title || '')}</div>`;
 
         for (const item of group.items) {
             if (!item) continue;
 
-            html += `<div class="question-item"><div class="q-stem">${item.index}. ${escapeHtml(item.stem || '')}</div>`;
+            html += `<div class="question-item"><div class="q-stem">${item.index}. ${formatMathHtml(item.stem || '')}</div>`;
 
             if (Array.isArray(item.options) && item.options.length > 0) {
-                html += `<div class="q-options">${item.options.filter(Boolean).map((opt) => `<div class="q-option">${escapeHtml(opt)}</div>`).join('')}</div>`;
+                html += `<div class="q-options">${item.options.filter(Boolean).map((opt) => `<div class="q-option">${formatMathHtml(opt)}</div>`).join('')}</div>`;
             }
 
             if (item.figure) {
@@ -1508,7 +1508,7 @@ function renderExamPreview(title, groups) {
             return orig ? `${i + 1}. ${String(orig).replace(/^\d+\.\s*/, '')}` : '';
         }).filter(Boolean);
 
-        document.getElementById('answerContent').innerHTML = answers.map((a) => `<div>${escapeHtml(a)}</div>`).join('<br>');
+        document.getElementById('answerContent').innerHTML = answers.map((a) => `<div>${formatMathHtml(a)}</div>`).join('<br>');
     }
 
     applyAnswerVisibility();
@@ -1891,6 +1891,29 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function formatMathHtml(value) {
+    const escaped = escapeHtml(value);
+    return applyMathScriptHtml(escaped).replace(/\n/g, '<br>');
+}
+
+function applyMathScriptHtml(text) {
+    let result = String(text || '');
+
+    // 先处理括号/花括号包裹的上下标
+    result = result.replace(/\^\(([^()<>]{1,40})\)/g, '<sup>$1</sup>');
+    result = result.replace(/_\(([^()<>]{1,40})\)/g, '<sub>$1</sub>');
+    result = result.replace(/\^\{([^{}<>]{1,40})\}/g, '<sup>$1</sup>');
+    result = result.replace(/_\{([^{}<>]{1,40})\}/g, '<sub>$1</sub>');
+
+    // 再处理常见简写：x^2 / x_P / x^n
+    result = result.replace(/\^(-?\d+(?:\.\d+)?)/g, '<sup>$1</sup>');
+    result = result.replace(/_([+-]?\d+)/g, '<sub>$1</sub>');
+    result = result.replace(/\^([A-Za-z])/g, '<sup>$1</sup>');
+    result = result.replace(/_([A-Za-z]{1,4})\b/g, '<sub>$1</sub>');
+
+    return result;
+}
+
 function normalizeMathTextForDisplay(value) {
     let text = String(value || '');
     if (!text) return '';
@@ -1905,6 +1928,10 @@ function normalizeMathTextForDisplay(value) {
     text = text.replace(/\\dfrac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
     text = text.replace(/\\tfrac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
     text = text.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
+    text = text.replace(/\b(?:dfrac|tfrac|frac)\s*-\s*\(([^()]+)\)\s*\/\s*\(([^()]+)\)/gi, '(-$1)/($2)');
+    text = text.replace(/\b(?:dfrac|tfrac|frac)\s*\(([^()]+)\)\s*\/\s*\(([^()]+)\)/gi, '($1)/($2)');
+    text = text.replace(/\b(?:dfrac|tfrac|frac)\s*-\s*([A-Za-z0-9.]+)\s*\/\s*([A-Za-z0-9.]+)/gi, '(-$1)/($2)');
+    text = text.replace(/\b(?:dfrac|tfrac|frac)\s*([A-Za-z0-9.]+)\s*\/\s*([A-Za-z0-9.]+)/gi, '($1)/($2)');
     text = text.replace(/\\sqrt\{([^{}]*)\}/g, '√($1)');
     text = text.replace(/\\sqrt\[(\d+)\]\{([^{}]*)\}/g, '$1√($2)');
     text = text.replace(/\\(?:text|mathrm|mathbf|mathit|operatorname)\{([^{}]*)\}/g, '$1');
@@ -1963,6 +1990,7 @@ function normalizeMathTextForDisplay(value) {
 
     // 清理残留命令：仅去掉命令前导反斜杠，避免误删坐标点名等普通字母（如 \A -> A）
     text = text.replace(/\\([a-zA-Z]+)(?=\s|[{}()[\],.;:!?+\-*/=<>]|$)/g, '$1');
+    text = text.replace(/\b(?:dfrac|tfrac|frac)\b/gi, '');
     text = text.replace(/\\([{}$%&_#])/g, '$1');
     text = text.replace(/\\/g, '');
     text = text.replace(/[{}]/g, '');
