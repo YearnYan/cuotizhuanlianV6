@@ -545,6 +545,34 @@ input:focus, select:focus, textarea:focus {
 .q-stem { font-weight: 500; margin-bottom: 5px; }
 .q-options { display: flex; flex-wrap: wrap; gap: 20px; margin-left: 20px; margin-bottom: 8px; }
 .q-option { min-width: 20%; flex: 0 0 auto; }
+.math-frac {
+    display: inline-block;
+    vertical-align: middle;
+    text-align: center;
+    line-height: 1.1;
+    white-space: nowrap;
+    margin: 0 0.08em;
+}
+
+.math-frac-num {
+    display: block;
+    padding: 0 0.15em;
+    border-bottom: 1.5px solid currentColor;
+}
+
+.math-frac-line {
+    display: none;
+}
+
+.math-frac-den {
+    display: block;
+    padding: 0 0.15em;
+}
+
+.math-frac sup,
+.math-frac sub {
+    font-size: 0.72em;
+}
 .q-figure { width: 100%; padding: 10px 0; text-align: center; overflow: visible; }
 .q-figure.q-figure-loading { min-height: 60px; }
 .q-figure svg { max-width: 280px; height: auto; display: block; margin: 0 auto; overflow: visible; }

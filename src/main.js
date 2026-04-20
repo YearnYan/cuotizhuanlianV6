@@ -1763,6 +1763,10 @@ body { font-family: '宋体', SimSun, serif; font-size: 12pt; line-height: 1.8; 
 .q-stem { font-weight: normal; margin-bottom: 4pt; }
 .q-options { margin-left: 2em; }
 .q-option { display: inline-block; min-width: 22%; margin-right: 0.25em; }
+.math-frac { display: inline-block; text-align: center; vertical-align: middle; line-height: 1.1; white-space: nowrap; margin: 0 0.08em; }
+.math-frac-num { display: block; padding: 0 0.15em; border-bottom: 1pt solid #000; }
+.math-frac-line { display: none; }
+.math-frac-den { display: block; padding: 0 0.15em; }
 .answer-key { margin-top: 30pt; border-top: 1pt dashed #999; padding-top: 16pt; }
 .answer-key .group-title { font-weight: bold; font-size: 14pt; margin-bottom: 8pt; }
 </style></head>
@@ -1893,7 +1897,82 @@ function escapeHtml(value) {
 
 function formatMathHtml(value) {
     const escaped = escapeHtml(value);
-    return applyMathScriptHtml(escaped).replace(/\n/g, '<br>');
+    const withFractions = applyFractionHtml(escaped);
+    return applyMathScriptHtml(withFractions).replace(/\n/g, '<br>');
+}
+
+function applyFractionHtml(text) {
+    let result = String(text || '');
+    if (!result.includes('/')) return result;
+
+    // 先保护 URL，避免把路径中的 / 误当分数
+    const protectedUrls = [];
+    result = result.replace(/https?:\/\/[^\s<]+/gi, (url) => {
+        const token = `__URL_TOKEN_${protectedUrls.length}__`;
+        protectedUrls.push(url);
+        return token;
+    });
+
+    const bracketFractionPattern = /(^|[^A-Za-z0-9])\(([^()<>]{1,80})\)\s*\/\s*\(([^()<>]{1,80})\)/g;
+    const plainFractionPattern = /(^|[^A-Za-z0-9.])([+-]?(?:\d+(?:\.\d+)?|[A-Za-z]{1,6}(?:<sub>[^<>]{1,12}<\/sub>)?))\s*\/\s*([+-]?(?:\d+(?:\.\d+)?|[A-Za-z]{1,6}(?:<sub>[^<>]{1,12}<\/sub>)?))(?=([^A-Za-z0-9.]|$))/g;
+    const plainFractionMulPattern = /(^|[^A-Za-z0-9.])([+-]?(?:\d+(?:\.\d+)?|[A-Za-z]{1,6}(?:<sub>[^<>]{1,12}<\/sub>)?))\s*\/\s*([+-]?\d+(?:\.\d+)?)(?=([A-Za-z<(]))/g;
+    const renderFraction = (numerator, denominator) => {
+        const top = applyMathScriptHtml(String(numerator || '').trim());
+        const bottom = applyMathScriptHtml(String(denominator || '').trim());
+        return `<span class="math-frac"><span class="math-frac-num">${top}</span><span class="math-frac-line"></span><span class="math-frac-den">${bottom}</span></span>`;
+    };
+
+    const shouldSkipFraction = (source, startOffset, matchLength, numerator, denominator) => {
+        const prevChar = startOffset > 0 ? source[startOffset - 1] : '';
+        const nextChar = source[startOffset + matchLength] || '';
+        const num = String(numerator || '');
+        const den = String(denominator || '');
+        const bothDigits = /^\d+$/.test(num) && /^\d+$/.test(den);
+
+        // 日期/时间常见形态：2026/04/20 或 04/20（且前后仍是日期上下文）
+        if (bothDigits && (prevChar === '/' || nextChar === '/')) return true;
+        if (bothDigits && /^(19|20)\d{2}$/.test(num) && den.length <= 2) return true;
+
+        return false;
+    };
+
+    const replaceWithPattern = (input, pattern) => {
+        return input.replace(pattern, (...args) => {
+            const all = args[0];
+            const prefix = args[1];
+            const numerator = args[2];
+            const denominator = args[3];
+            const offset = args[args.length - 2];
+            const source = args[args.length - 1];
+            const safePrefix = String(prefix || '');
+            const num = String(numerator || '');
+            const den = String(denominator || '');
+            const coreStart = offset + safePrefix.length;
+            const coreLength = num.length + 1 + den.length;
+            if (shouldSkipFraction(String(source || ''), coreStart, coreLength, num, den)) {
+                return all;
+            }
+            return `${safePrefix}${renderFraction(num, den)}`;
+        });
+    };
+
+    // 支持同一行多个分数，限制迭代次数避免异常文本导致死循环
+    let guard = 0;
+    while (guard < 12) {
+        let next = replaceWithPattern(result, bracketFractionPattern);
+        next = replaceWithPattern(next, plainFractionPattern);
+        next = replaceWithPattern(next, plainFractionMulPattern);
+        if (next === result) break;
+        result = next;
+        guard += 1;
+    }
+
+    // 还原 URL
+    result = result.replace(/__URL_TOKEN_(\d+)__/g, (all, idx) => {
+        return protectedUrls[Number(idx)] || all;
+    });
+
+    return result;
 }
 
 function applyMathScriptHtml(text) {
