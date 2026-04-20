@@ -690,16 +690,88 @@ async function analyzeWrongQuestion({
       .slice(0, 8);
   };
 
+  const cleanMathText = (text) => {
+    let r = String(text || '');
+    if (!r) return '';
+
+    r = r.replace(/\$\$(.*?)\$\$/gs, '$1');
+    r = r.replace(/\$(.*?)\$/gs, '$1');
+    r = r.replace(/\\\$/g, '$');
+    r = r.replace(/\$/g, '');
+    r = r.replace(/\\dfrac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
+    r = r.replace(/\\tfrac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
+    r = r.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
+    r = r.replace(/\\sqrt\{([^{}]*)\}/g, '√($1)');
+    r = r.replace(/\\sqrt\[(\d+)\]\{([^{}]*)\}/g, '$1√($2)');
+    r = r.replace(/\\(?:text|mathrm|mathbf|mathit|operatorname)\{([^{}]*)\}/g, '$1');
+    r = r.replace(/\\(?:overline|underline)\{([^{}]*)\}/g, '$1');
+    r = r.replace(/\\(?:vec|overrightarrow)\{([^{}]*)\}/g, '→$1');
+
+    const symbolMap = {
+      '\\triangle': '△',
+      '\\angle': '∠',
+      '\\circ': '°',
+      '\\times': '×',
+      '\\div': '÷',
+      '\\cdot': '·',
+      '\\leq': '≤',
+      '\\geq': '≥',
+      '\\neq': '≠',
+      '\\approx': '≈',
+      '\\parallel': '∥',
+      '\\perp': '⊥',
+      '\\alpha': 'α',
+      '\\beta': 'β',
+      '\\gamma': 'γ',
+      '\\delta': 'δ',
+      '\\theta': 'θ',
+      '\\lambda': 'λ',
+      '\\mu': 'μ',
+      '\\pi': 'π',
+      '\\sigma': 'σ',
+      '\\phi': 'φ',
+      '\\omega': 'ω',
+      '\\Delta': 'Δ',
+      '\\Omega': 'Ω',
+      '\\rightarrow': '→',
+      '\\leftarrow': '←',
+      '\\to': '→',
+      '\\infty': '∞',
+      '\\sin': 'sin',
+      '\\cos': 'cos',
+      '\\tan': 'tan',
+      '\\log': 'log',
+      '\\ln': 'ln',
+      '\\left': '',
+      '\\right': ''
+    };
+
+    for (const [latex, plain] of Object.entries(symbolMap)) {
+      const escaped = latex.replace(/\\/g, '\\\\');
+      r = r.replace(new RegExp(escaped, 'g'), plain);
+    }
+
+    r = r.replace(/\^\{([^{}]*)\}/g, '^($1)');
+    r = r.replace(/_\{([^{}]*)\}/g, '_($1)');
+    // 仅移除命令前导反斜杠，避免误删普通字母（如 \A 误删为 ''）
+    r = r.replace(/\\([a-zA-Z]+)(?=\s|[{}()[\],.;:!?+\-*/=<>]|$)/g, '$1');
+    r = r.replace(/\\([{}$%&_#])/g, '$1');
+    r = r.replace(/\\/g, '');
+    r = r.replace(/[{}]/g, '');
+    r = r.replace(/\s{2,}/g, ' ').trim();
+    return r;
+  };
+
   return {
-    subject: String(parsed.subject || '').trim(),
-    grade: String(parsed.grade || '').trim(),
-    knowledgePoints: normalizeList(parsed.knowledgePoints),
-    examPoints: normalizeList(parsed.examPoints),
-    answerAnalysis: String(parsed.answerAnalysis || '').trim(),
+    subject: cleanMathText(parsed.subject),
+    grade: cleanMathText(parsed.grade),
+    knowledgePoints: normalizeList(parsed.knowledgePoints).map((item) => cleanMathText(item)),
+    examPoints: normalizeList(parsed.examPoints).map((item) => cleanMathText(item)),
+    answerAnalysis: cleanMathText(parsed.answerAnalysis),
     hasFigure: Boolean(parsed.hasFigure),
-    originalQuestionText: String(parsed.originalQuestionText || '').trim(),
+    originalQuestionText: cleanMathText(parsed.originalQuestionText),
     needsWholeQuestion: Boolean(parsed.needsWholeQuestion),
-    wholeQuestionAdvice: String(parsed.wholeQuestionAdvice || '').trim()
+    wholeQuestionAdvice: cleanMathText(parsed.wholeQuestionAdvice)
   };
 }
 
@@ -1154,8 +1226,10 @@ function postProcessLatexSymbols(exam) {
       r = r.replace(new RegExp(escaped, 'g'), unicode);
     }
 
-    // 5. 清理残留的反斜杠命令
-    r = r.replace(/\\[a-zA-Z]+/g, '');
+    // 5. 清理残留命令：仅去掉前导反斜杠，避免误删普通字母
+    r = r.replace(/\\([a-zA-Z]+)(?=\s|[{}()[\],.;:!?+\-*/=<>]|$)/g, '$1');
+    r = r.replace(/\\([{}$%&_#])/g, '$1');
+    r = r.replace(/\\/g, '');
 
     // 6. 清理多余空格
     r = r.replace(/\s{2,}/g, ' ').trim();

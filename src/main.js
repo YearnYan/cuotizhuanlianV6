@@ -813,7 +813,7 @@ function renderAnalysisResult() {
 
     if (knowledgeEl) knowledgeEl.innerHTML = toListText(state.analysis.knowledgePoints);
     if (examEl) examEl.innerHTML = toListText(state.analysis.examPoints);
-    if (answerEl) answerEl.textContent = state.analysis.answerAnalysis || '未识别到';
+    if (answerEl) answerEl.textContent = normalizeMathTextForDisplay(state.analysis.answerAnalysis || '未识别到');
 
     panel.style.display = 'block';
 }
@@ -937,7 +937,7 @@ function normalizeAnalysisResult(data) {
     const normalizeList = (list) => {
         if (!Array.isArray(list)) return [];
         return list
-            .map((item) => String(item || '').trim())
+            .map((item) => normalizeMathTextForDisplay(item))
             .filter(Boolean)
             .slice(0, 8);
     };
@@ -945,13 +945,13 @@ function normalizeAnalysisResult(data) {
     return {
         knowledgePoints: normalizeList(data.knowledgePoints),
         examPoints: normalizeList(data.examPoints),
-        answerAnalysis: String(data.answerAnalysis || '').trim(),
+        answerAnalysis: normalizeMathTextForDisplay(data.answerAnalysis),
         hasFigure: Boolean(data.hasFigure),
-        subject: String(data.subject || '').trim(),
-        grade: String(data.grade || '').trim(),
-        originalQuestionText: String(data.originalQuestionText || '').trim(),
+        subject: normalizeMathTextForDisplay(data.subject),
+        grade: normalizeMathTextForDisplay(data.grade),
+        originalQuestionText: normalizeMathTextForDisplay(data.originalQuestionText),
         needsWholeQuestion: Boolean(data.needsWholeQuestion),
-        wholeQuestionAdvice: String(data.wholeQuestionAdvice || '').trim()
+        wholeQuestionAdvice: normalizeMathTextForDisplay(data.wholeQuestionAdvice)
     };
 }
 
@@ -1883,12 +1883,92 @@ function loadSettings() {
 }
 
 function escapeHtml(value) {
-    return String(value || '')
+    return normalizeMathTextForDisplay(String(value || ''))
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function normalizeMathTextForDisplay(value) {
+    let text = String(value || '');
+    if (!text) return '';
+
+    // 先剥离常见的 LaTeX 数学定界符
+    text = text.replace(/\$\$(.*?)\$\$/gs, '$1');
+    text = text.replace(/\$(.*?)\$/gs, '$1');
+    text = text.replace(/\\\$/g, '$');
+    text = text.replace(/\$/g, '');
+
+    // 处理常见公式命令
+    text = text.replace(/\\dfrac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
+    text = text.replace(/\\tfrac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
+    text = text.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
+    text = text.replace(/\\sqrt\{([^{}]*)\}/g, '√($1)');
+    text = text.replace(/\\sqrt\[(\d+)\]\{([^{}]*)\}/g, '$1√($2)');
+    text = text.replace(/\\(?:text|mathrm|mathbf|mathit|operatorname)\{([^{}]*)\}/g, '$1');
+    text = text.replace(/\\(?:overline|underline)\{([^{}]*)\}/g, '$1');
+    text = text.replace(/\\(?:vec|overrightarrow)\{([^{}]*)\}/g, '→$1');
+
+    // 下标/上标：多字符时保留可读括号形式
+    text = text.replace(/\^\{([^{}]*)\}/g, '^($1)');
+    text = text.replace(/_\{([^{}]*)\}/g, '_($1)');
+    text = text.replace(/\^(\d+)/g, '^$1');
+    text = text.replace(/_(\d+)/g, '_$1');
+
+    const symbolMap = {
+        '\\triangle': '△',
+        '\\angle': '∠',
+        '\\circ': '°',
+        '\\times': '×',
+        '\\div': '÷',
+        '\\cdot': '·',
+        '\\leq': '≤',
+        '\\geq': '≥',
+        '\\neq': '≠',
+        '\\approx': '≈',
+        '\\parallel': '∥',
+        '\\perp': '⊥',
+        '\\alpha': 'α',
+        '\\beta': 'β',
+        '\\gamma': 'γ',
+        '\\delta': 'δ',
+        '\\theta': 'θ',
+        '\\lambda': 'λ',
+        '\\mu': 'μ',
+        '\\pi': 'π',
+        '\\sigma': 'σ',
+        '\\phi': 'φ',
+        '\\omega': 'ω',
+        '\\Delta': 'Δ',
+        '\\Omega': 'Ω',
+        '\\rightarrow': '→',
+        '\\leftarrow': '←',
+        '\\to': '→',
+        '\\infty': '∞',
+        '\\sin': 'sin',
+        '\\cos': 'cos',
+        '\\tan': 'tan',
+        '\\log': 'log',
+        '\\ln': 'ln',
+        '\\left': '',
+        '\\right': ''
+    };
+
+    for (const [latex, plain] of Object.entries(symbolMap)) {
+        const escaped = latex.replace(/\\/g, '\\\\');
+        text = text.replace(new RegExp(escaped, 'g'), plain);
+    }
+
+    // 清理残留命令：仅去掉命令前导反斜杠，避免误删坐标点名等普通字母（如 \A -> A）
+    text = text.replace(/\\([a-zA-Z]+)(?=\s|[{}()[\],.;:!?+\-*/=<>]|$)/g, '$1');
+    text = text.replace(/\\([{}$%&_#])/g, '$1');
+    text = text.replace(/\\/g, '');
+    text = text.replace(/[{}]/g, '');
+    text = text.replace(/\s{2,}/g, ' ').trim();
+
+    return text;
 }
 
 Object.assign(window, {
