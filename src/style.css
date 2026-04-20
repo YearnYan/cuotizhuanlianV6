@@ -257,6 +257,45 @@ input:focus, select:focus, textarea:focus {
 .btn-gen:disabled { opacity: 0.65; cursor: not-allowed; box-shadow: none; }
 .btn-gen.is-loading { background: rgba(100,255,218,0.85); }
 
+.manifesto-card {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align: center;
+    line-height: 1.6;
+}
+
+.manifesto-title {
+    margin-bottom: 5px;
+}
+
+.manifesto-text {
+    color: var(--line-blue);
+    font-weight: 500;
+}
+
+.manifesto-logo-wrap {
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+}
+
+.manifesto-logo {
+    width: min(100%, 280px);
+    height: auto;
+    display: block;
+    object-fit: contain;
+    border-radius: 4px;
+    background: #ffffff;
+}
+
 .btn-demo {
     background: transparent; color: var(--line-blue); border: 1px solid var(--line-blue);
     padding: 10px; cursor: pointer; text-align: center; transition: 0.2s;

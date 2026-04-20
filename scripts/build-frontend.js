@@ -9,6 +9,8 @@ const assetsDir = path.join(distDir, 'assets');
 const templatePath = path.join(srcDir, 'index.html');
 const outputHtmlPath = path.join(distDir, 'index.html');
 const entryPoint = path.join(srcDir, 'app-entry.js');
+const rootLogoPath = path.join(projectRoot, 'logo.png');
+const distLogoPath = path.join(distDir, 'logo.png');
 
 function removeLegacyTags(html) {
   let next = html.replace(
@@ -81,6 +83,12 @@ function pickOutputAssets(metafile) {
 async function buildFrontend() {
   await fs.promises.rm(distDir, { recursive: true, force: true });
   await fs.promises.mkdir(assetsDir, { recursive: true });
+
+  if (fs.existsSync(rootLogoPath)) {
+    await fs.promises.copyFile(rootLogoPath, distLogoPath);
+  } else {
+    console.warn('未找到根目录 logo.png，将跳过复制到 dist');
+  }
 
   const buildResult = await esbuild.build({
     entryPoints: [entryPoint],
