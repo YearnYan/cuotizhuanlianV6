@@ -1,7 +1,5 @@
 const MIN_PASSWORD_LENGTH = 6;
 const MAX_PASSWORD_LENGTH = 64;
-const MIN_USERNAME_LENGTH = 3;
-const MAX_USERNAME_LENGTH = 24;
 
 const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_HASH_LENGTH = 32;
@@ -49,9 +47,6 @@ function normalizeUsername(username) {
 function validateUsername(username) {
   const normalized = normalizeUsername(username);
   if (!normalized) throw createError('用户名不能为空');
-  if (normalized.length < MIN_USERNAME_LENGTH || normalized.length > MAX_USERNAME_LENGTH) {
-    throw createError(`用户名长度需在 ${MIN_USERNAME_LENGTH}-${MAX_USERNAME_LENGTH} 个字符之间`);
-  }
   if (!/^[A-Za-z0-9_\u4e00-\u9fa5]+$/.test(normalized)) {
     throw createError('用户名仅支持中文、字母、数字、下划线');
   }
@@ -420,4 +415,3 @@ export class AccountStoreDO {
     }
   }
 }
-
