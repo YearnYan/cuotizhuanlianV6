@@ -416,6 +416,48 @@ input:focus, select:focus, textarea:focus {
     display: block;
 }
 
+.live-learning-panel {
+    display: none;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto 16px auto;
+}
+
+.live-learning-panel.show { display: block; }
+
+.learning-exam-block {
+    background: #fff;
+    color: #000;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 18px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    page-break-inside: avoid;
+}
+
+.learning-exam-item {
+    border: 1px solid #e0e0e0;
+    border-radius: 3px;
+    padding: 10px 12px;
+    background: #fafafa;
+}
+
+.learning-exam-label {
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 6px;
+    color: #000;
+}
+
+.learning-exam-content {
+    font-size: 13px;
+    line-height: 1.7;
+    color: #333;
+}
+
 .figure-progress-banner {
     position: sticky;
     top: 0;
@@ -499,6 +541,8 @@ input:focus, select:focus, textarea:focus {
 .a4-paper .question-item,
 .a4-paper .exam-header,
 .a4-paper .answer-key,
+.a4-paper .learning-exam-block,
+.a4-paper .learning-exam-item,
 .a4-paper #examContent,
 .a4-paper #answerContent {
     background: #fff;
@@ -601,6 +645,14 @@ input:focus, select:focus, textarea:focus {
     height: auto;
     border: 1px solid #ddd;
     border-radius: 2px;
+}
+
+.a4-paper .learning-exam-block {
+    grid-template-columns: 1fr;
+}
+
+.a4-paper .learning-exam-item {
+    border-color: #ddd;
 }
 
 .answer-key {
@@ -751,6 +803,10 @@ input:focus, select:focus, textarea:focus {
     .preview-wrapper {
         min-height: 68vh;
     }
+
+    .live-learning-panel .learning-exam-block {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media print {
@@ -772,6 +828,8 @@ input:focus, select:focus, textarea:focus {
     .a4-paper .question-item,
     .a4-paper .exam-header,
     .a4-paper .answer-key,
+    .a4-paper .learning-exam-block,
+    .a4-paper .learning-exam-item,
     .a4-paper .original-question-block,
     .a4-paper #examContent,
     .a4-paper #answerContent { background: #fff !important; color: #000 !important; }

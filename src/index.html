@@ -104,6 +104,12 @@
                     </div>
                     <div class="control-row" style="margin-top:10px">
                         <label style="font-size:14px;display:flex;align-items:center;gap:5px">
+                            <input type="checkbox" id="showLearningExam" checked style="width:auto">
+                            显示所学、所考
+                        </label>
+                    </div>
+                    <div class="control-row" style="margin-top:10px">
+                        <label style="font-size:14px;display:flex;align-items:center;gap:5px">
                             <input type="checkbox" id="showAnswer" checked style="width:auto">
                             显示答案和解析
                         </label>
@@ -143,6 +149,7 @@
                     <div class="group-title">原题展示</div>
                     <img id="liveOriginalImage" alt="原题图片">
                 </div>
+                <div class="live-learning-panel" id="liveLearningExamPanel"></div>
 
                 <div class="question-select-mode" id="selectMode">
                     <div style="text-align:center;color:#999;padding-top:100px">

@@ -70,6 +70,7 @@ async function bootstrapApp() {
     applyQuestionTypeCountsToInputs();
     applyAnswerVisibility();
     updateLiveOriginalPanel();
+    updateLiveLearningExamPanel();
 
     if (typeof ensureRequestToken === 'function') {
         ensureRequestToken().catch(() => {});
@@ -662,7 +663,9 @@ function normalizeHistoryRecord(raw) {
         selectedQuestionTypes: raw.selectedQuestionTypes.map((item) => String(item || '').trim()).filter(Boolean),
         questionTypeCounts: raw.questionTypeCounts && typeof raw.questionTypeCounts === 'object' ? raw.questionTypeCounts : {},
         questions: raw.questions,
-        data: raw.data
+        data: raw.data,
+        wrongQuestion: raw.wrongQuestion && typeof raw.wrongQuestion === 'object' ? raw.wrongQuestion : null,
+        analysis: raw.analysis && typeof raw.analysis === 'object' ? normalizeAnalysisResult(raw.analysis) : null
     };
 }
 
@@ -704,7 +707,14 @@ function saveHistoryRecord(data, selectedQuestionTypes, questionTypeCounts) {
         selectedQuestionTypes: selectedQuestionTypes.slice(),
         questionTypeCounts: { ...questionTypeCounts },
         questions: flattenedQuestions,
-        data
+        data,
+        wrongQuestion: state.wrongQuestion
+            ? {
+                fileName: state.wrongQuestion.fileName || '',
+                mimeType: state.wrongQuestion.mimeType || ''
+            }
+            : null,
+        analysis: state.analysis ? { ...state.analysis } : null
     };
 
     state.historyRecords.unshift(record);
@@ -774,9 +784,26 @@ function restoreHistoryRecord(recordId) {
     }
 
     state.currentExamData = target.data;
+    state.wrongQuestion = target.wrongQuestion || null;
+    state.analysis = target.analysis || buildAnalysisFromExamData(target.data);
+    renderWrongQuestionPreview(state.wrongQuestion?.previewImageUrl || '');
+    renderAnalysisResult();
     renderQuestionCards(target.data, Date.now());
     switchToSelectMode();
     closeModal('historyModal');
+}
+
+function buildAnalysisFromExamData(data) {
+    const metadata = data?.metadata;
+    if (!metadata || typeof metadata !== 'object') return null;
+    if (!Array.isArray(metadata.knowledgePoints) && !Array.isArray(metadata.examPoints)) return null;
+
+    return normalizeAnalysisResult({
+        knowledgePoints: metadata.knowledgePoints || [],
+        examPoints: metadata.examPoints || [],
+        subject: metadata.subject || '',
+        grade: metadata.grade || ''
+    });
 }
 
 function renderWrongQuestionPreview(url) {
@@ -799,23 +826,25 @@ function renderAnalysisResult() {
 
     if (!state.analysis) {
         panel.style.display = 'none';
+        updateLiveLearningExamPanel();
         return;
     }
-
-    const toListText = (list) => {
-        if (!Array.isArray(list) || list.length === 0) return '未识别到';
-        return list.map((item) => `• ${formatMathHtml(item)}`).join('<br>');
-    };
 
     const knowledgeEl = document.getElementById('analysisKnowledgePoints');
     const examEl = document.getElementById('analysisExamPoints');
     const answerEl = document.getElementById('analysisAnswer');
 
-    if (knowledgeEl) knowledgeEl.innerHTML = toListText(state.analysis.knowledgePoints);
-    if (examEl) examEl.innerHTML = toListText(state.analysis.examPoints);
+    if (knowledgeEl) knowledgeEl.innerHTML = formatAnalysisListHtml(state.analysis.knowledgePoints);
+    if (examEl) examEl.innerHTML = formatAnalysisListHtml(state.analysis.examPoints);
     if (answerEl) answerEl.innerHTML = formatMathHtml(state.analysis.answerAnalysis || '未识别到');
 
     panel.style.display = 'block';
+    updateLiveLearningExamPanel();
+}
+
+function formatAnalysisListHtml(list) {
+    if (!Array.isArray(list) || list.length === 0) return '未识别到';
+    return list.map((item) => `• ${formatMathHtml(item)}`).join('<br>');
 }
 
 function isEnglishSubject(subject) {
@@ -1262,6 +1291,7 @@ function renderQuestionCards(data, figureLoadToken = Date.now()) {
     container.innerHTML = html;
     composeBar.style.display = 'flex';
     updateSelectedCount();
+    updateLiveLearningExamPanel();
     loadFiguresAsync(figureLoadToken);
 }
 
@@ -1460,6 +1490,27 @@ function buildOriginalQuestionHtml() {
     `;
 }
 
+function shouldShowLearningExamModules() {
+    return document.getElementById('showLearningExam')?.checked ?? true;
+}
+
+function buildLearningExamModulesHtml() {
+    if (!state.analysis || !shouldShowLearningExamModules()) return '';
+
+    return `
+        <div class="learning-exam-block">
+            <div class="learning-exam-item">
+                <div class="learning-exam-label">所学</div>
+                <div class="learning-exam-content">${formatAnalysisListHtml(state.analysis.knowledgePoints)}</div>
+            </div>
+            <div class="learning-exam-item">
+                <div class="learning-exam-label">所考</div>
+                <div class="learning-exam-content">${formatAnalysisListHtml(state.analysis.examPoints)}</div>
+            </div>
+        </div>
+    `;
+}
+
 function renderExamPreview(title, groups) {
     const titleHint = document.getElementById('titleEditHint');
     if (titleHint) {
@@ -1468,7 +1519,7 @@ function renderExamPreview(title, groups) {
     }
 
     document.getElementById('paperTitle').textContent = title;
-    let html = buildOriginalQuestionHtml();
+    let html = buildOriginalQuestionHtml() + buildLearningExamModulesHtml();
 
     for (const [, group] of Object.entries(groups)) {
         if (!group || !group.items || group.items.length === 0) continue;
@@ -1533,9 +1584,35 @@ function updateLiveOriginalPanel() {
     panel.classList.add('show');
 }
 
+function updateLiveLearningExamPanel() {
+    const panel = document.getElementById('liveLearningExamPanel');
+    if (!panel) return;
+
+    const html = buildLearningExamModulesHtml();
+    const shouldShow = state.mode !== 'preview' && !!html;
+
+    if (!shouldShow) {
+        panel.classList.remove('show');
+        panel.innerHTML = '';
+        return;
+    }
+
+    panel.innerHTML = html;
+    panel.classList.add('show');
+}
+
 function handleShowOriginalChange() {
     saveSettings();
     updateLiveOriginalPanel();
+
+    if (state.mode === 'preview' && state.lastPreviewGroups) {
+        renderExamPreview(state.lastPreviewTitle || DEFAULT_PREVIEW_TITLE, state.lastPreviewGroups);
+    }
+}
+
+function handleLearningExamVisibilityChange() {
+    saveSettings();
+    updateLiveLearningExamPanel();
 
     if (state.mode === 'preview' && state.lastPreviewGroups) {
         renderExamPreview(state.lastPreviewTitle || DEFAULT_PREVIEW_TITLE, state.lastPreviewGroups);
@@ -1555,6 +1632,7 @@ function switchToSelectMode() {
     document.getElementById('paper').classList.remove('show');
     document.getElementById('downloadBar').classList.remove('show');
     updateLiveOriginalPanel();
+    updateLiveLearningExamPanel();
 }
 
 function switchToPreviewMode() {
@@ -1565,6 +1643,7 @@ function switchToPreviewMode() {
     paper.classList.add('show');
     document.getElementById('downloadBar').classList.add('show');
     updateLiveOriginalPanel();
+    updateLiveLearningExamPanel();
 }
 
 function backToSelect() {
@@ -1759,6 +1838,10 @@ body { font-family: '宋体', SimSun, serif; font-size: 12pt; line-height: 1.8; 
 .exam-info { text-align: center; font-size: 12pt; margin-top: 12pt; }
 .question-group { margin-bottom: 16pt; }
 .group-title { font-weight: bold; font-size: 14pt; margin-bottom: 8pt; }
+.learning-exam-block { border: 1pt solid #999; padding: 8pt; margin-bottom: 14pt; }
+.learning-exam-item + .learning-exam-item { margin-top: 8pt; padding-top: 8pt; border-top: 1pt dashed #999; }
+.learning-exam-label { font-weight: bold; margin-bottom: 4pt; }
+.learning-exam-content { line-height: 1.7; }
 .question-item { margin-bottom: 12pt; font-size: 12pt; line-height: 1.8; }
 .q-stem { font-weight: normal; margin-bottom: 4pt; }
 .q-options { margin-left: 2em; }
@@ -1829,12 +1912,14 @@ function closeModal(id) {
 function saveSettings() {
     const showAnswer = document.getElementById('showAnswer')?.checked ?? true;
     const showOriginal = document.getElementById('showOriginal')?.checked ?? true;
+    const showLearningExam = document.getElementById('showLearningExam')?.checked ?? true;
     const questionTypes = getSelectedQuestionTypes();
     const questionTypeCounts = getQuestionTypeCounts();
 
     const settings = {
         showAnswer,
         showOriginal,
+        showLearningExam,
         questionTypes,
         questionTypeCounts
     };
@@ -1852,6 +1937,9 @@ function loadSettings() {
     const showOriginalEl = document.getElementById('showOriginal');
     if (showOriginalEl) showOriginalEl.checked = true;
 
+    const showLearningExamEl = document.getElementById('showLearningExam');
+    if (showLearningExamEl) showLearningExamEl.checked = true;
+
     const saved = localStorage.getItem(SETTINGS_KEY);
     if (!saved) {
         state.savedQuestionTypes = defaultTypes;
@@ -1866,6 +1954,9 @@ function loadSettings() {
         }
         if (showOriginalEl && parsed.showOriginal !== undefined) {
             showOriginalEl.checked = !!parsed.showOriginal;
+        }
+        if (showLearningExamEl && parsed.showLearningExam !== undefined) {
+            showLearningExamEl.checked = !!parsed.showLearningExam;
         }
 
         if (Array.isArray(parsed.questionTypes) && parsed.questionTypes.length > 0) {
@@ -2089,6 +2180,7 @@ Object.assign(window, {
     closeModal,
     saveSettings,
     handleShowOriginalChange,
+    handleLearningExamVisibilityChange,
     openAuthModal,
     openRedeemModal,
     openHistoryModal,

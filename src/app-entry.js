@@ -28,6 +28,15 @@ bindEvent('showOriginal', 'change', () => {
     window.saveSettings();
   }
 });
+bindEvent('showLearningExam', 'change', () => {
+  if (typeof window.handleLearningExamVisibilityChange === 'function') {
+    window.handleLearningExamVisibilityChange();
+    return;
+  }
+  if (typeof window.saveSettings === 'function') {
+    window.saveSettings();
+  }
+});
 bindEvent('count_similar', 'change', () => window.saveSettings?.());
 bindEvent('count_variant', 'change', () => window.saveSettings?.());
 bindEvent('count_application', 'change', () => window.saveSettings?.());
